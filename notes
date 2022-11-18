@@ -1,0 +1,5 @@
+[commands]
+"status" command
+Start / stop / restart programs
+Reload the configuration file without stopping the main program
+Stop the main program

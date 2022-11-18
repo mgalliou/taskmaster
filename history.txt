@@ -1,0 +1,6 @@
+#V2
+ls
+ls la
+exit
+start
+ fc
