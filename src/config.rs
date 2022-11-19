@@ -2,20 +2,35 @@ use std::fs;
 use std::collections::HashMap;
 use yaml_rust::{Yaml, YamlLoader};
 
+#[derive(Debug)]
 struct ProgramConfig {
     cmd: String,
     stdout: String,
     stderr: String,
 }
 
+#[derive(Debug)]
 pub struct Config {
     programs: HashMap<String, ProgramConfig>
 }
 
-fn get_prog_conf(yaml: Vec<Yaml>) -> HashMap<String, ProgramConfig> {
-    let prog_conf: HashMap<String, ProgramConfig> = HashMap::new();
-    let programs: HashMap<Yaml, Yaml>;
+fn get_prog_conf(yaml: &Yaml) -> HashMap<String, ProgramConfig> {
+    let mut prog_conf: HashMap<String, ProgramConfig> = HashMap::new();
+    let programs = &yaml["programs"];
 
+    for prog in programs.as_hash().into_iter() {
+        for e in prog.into_iter() {
+            let name = match e.0.as_str() {
+                Some(s) => s.to_string(),
+                None => panic!("field is not as string"),
+            };
+            let cmd = &e.1["cmd"].as_str().unwrap().to_string();
+            let stdout = &e.1["stdout"].as_str().unwrap().to_string();
+            let stderr = &e.1["stderr"].as_str().unwrap().to_string();
+            prog_conf.insert(name, ProgramConfig { cmd: cmd.to_string(), stdout: stdout.to_string(), stderr: stderr.to_string() });
+        }
+    }
+    /*
     for node in yaml {
         match node.into_hash() {
             Some(n) => match n.remove(&Yaml::String("programs".to_string())) {
@@ -25,6 +40,7 @@ fn get_prog_conf(yaml: Vec<Yaml>) -> HashMap<String, ProgramConfig> {
             None => panic!("configuration file is empty"),
         }
     }
+    */
     prog_conf
 }
 
@@ -37,6 +53,5 @@ pub fn get(path: String) -> Config {
         Ok(yaml) => yaml,
         Err(error) => panic!("Problem converting string to yaml object: {:?}", error),
     };
-    let conf: Config = Config { programs: get_prog_conf(yaml) };
-    conf
+    return Config { programs: get_prog_conf(&yaml[0]) };
 }

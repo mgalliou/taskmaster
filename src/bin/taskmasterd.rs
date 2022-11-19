@@ -4,5 +4,6 @@ use taskmaster::config;
 
 fn main() {
     println!("Running taskmaster daemon");
-    config::get("taskmaster.yaml".to_string());
+    let conf = config::get("taskmaster.yaml".to_string());
+    println!("{:?}", conf);
 }
