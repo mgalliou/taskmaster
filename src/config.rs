@@ -3,15 +3,15 @@ use std::collections::HashMap;
 use yaml_rust::{Yaml, YamlLoader};
 
 #[derive(Debug)]
-struct ProgramConfig {
-    cmd: String,
+pub struct ProgramConfig {
+    pub cmd: String,
     stdout: String,
     stderr: String,
 }
 
 #[derive(Debug)]
 pub struct Config {
-    programs: HashMap<String, ProgramConfig>
+    pub programs: HashMap<String, ProgramConfig>
 }
 
 fn get_prog_conf(yaml: &Yaml) -> HashMap<String, ProgramConfig> {
