@@ -30,18 +30,7 @@ fn get_prog_conf(yaml: &Yaml) -> HashMap<String, ProgramConfig> {
             prog_conf.insert(name, ProgramConfig { cmd: cmd.to_string(), stdout: stdout.to_string(), stderr: stderr.to_string() });
         }
     }
-    /*
-    for node in yaml {
-        match node.into_hash() {
-            Some(n) => match n.remove(&Yaml::String("programs".to_string())) {
-                Some (p) => p.into_hash(),
-                None => panic!("no 'programs' key in yaml"),
-            },
-            None => panic!("configuration file is empty"),
-        }
-    }
-    */
-    prog_conf
+    return prog_conf
 }
 
 pub fn get(path: String) -> Config {
@@ -54,4 +43,17 @@ pub fn get(path: String) -> Config {
         Err(error) => panic!("Problem converting string to yaml object: {:?}", error),
     };
     return Config { programs: get_prog_conf(&yaml[0]) };
+}
+
+#[cfg(test)]
+mod tests {
+    use super::get;
+
+    #[test]
+    fn it_works() {
+        let c = get("cfg/good/cat.yaml".to_string());
+        assert_eq!(c.programs["cat"].cmd, "/bin/cat");
+        assert_eq!(c.programs["cat"].stdout, "/tmp/cat.stdout");
+        assert_eq!(c.programs["cat"].stderr, "/tmp/cat.stderr");
+    }
 }

@@ -1,0 +1,5 @@
+programs:
+  cat:
+    cmd: "/bin/cat"
+    stdout: "/tmp/cat.stdout"
+    stderr: "/tmp/cat.stderr"
