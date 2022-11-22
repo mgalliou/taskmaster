@@ -2,7 +2,7 @@ use std::fs;
 use std::collections::HashMap;
 use yaml_rust::{Yaml, YamlLoader};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[derive(PartialEq)]
 pub enum RestartPolicy {
     Always,
@@ -21,7 +21,7 @@ impl RestartPolicy {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ProgramConfig {
     pub cmd: String,
     pub numprocs: i64,
