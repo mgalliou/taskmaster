@@ -135,6 +135,8 @@ pub fn from_file(path: String) -> Config {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use crate::config;
 
     #[test]
@@ -151,6 +153,6 @@ mod tests {
         assert_eq!(c.programs["cat"].stoptime, 10);
         assert_eq!(c.programs["cat"].stdout, "/tmp/cat.stdout");
         assert_eq!(c.programs["cat"].stderr, "/tmp/cat.stderr");
-        //TODO: add test for env
+        assert_eq!(c.programs["cat"].env, HashMap::from([("STARTED_BY".to_string(), "taskmaster".to_string()),("ANSWER".to_string(), "42".to_string())]));
     }
 }
