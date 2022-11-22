@@ -121,16 +121,20 @@ fn get_prog_conf(yaml: &Yaml) -> HashMap<String, ProgramConfig> {
     return prog_conf
 }
 
+pub fn from_str(str: String) -> Config {
+    let yaml = match YamlLoader::load_from_str(&str) {
+        Ok(yaml) => yaml,
+        Err(error) => panic!("Problem converting string to yaml object: {:?}", error),
+    };
+    return Config { programs: get_prog_conf(&yaml[0]) };
+}
+
 pub fn from_file(path: String) -> Config {
     let yaml_str = match fs::read_to_string(path) {
         Ok(f) => f,
         Err(error) => panic!("Problem reading the file: {:?}", error),
     };
-    let yaml = match YamlLoader::load_from_str(&yaml_str) {
-        Ok(yaml) => yaml,
-        Err(error) => panic!("Problem converting string to yaml object: {:?}", error),
-    };
-    return Config { programs: get_prog_conf(&yaml[0]) };
+    from_str(yaml_str)
 }
 
 #[cfg(test)]
