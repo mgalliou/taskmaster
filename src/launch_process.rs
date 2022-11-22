@@ -1,4 +1,5 @@
-use std::process::{Command, Child};
+use std::fs::File;
+use std::process::{Command, Child, Stdio};
 
 use crate::config::{Config,ProgramConfig};
 
@@ -36,17 +37,52 @@ fn exit(command: Vec<&str>, conf: &Config) -> () {
 
 fn launch_process(prog: &ProgramConfig) -> Vec<Child> {
     let mut cmd_with_args = prog.cmd.split_whitespace();
-    let cmd = match cmd_with_args.nth(0) {
+    let cmd_name = match cmd_with_args.nth(0) {
         Some(n) => n,
         None => panic!("command not found")
     };
     let args = cmd_with_args.skip(1);
-    let mut child = Vec::new();
+    let mut child: Vec<Child> = Vec::new();
+    // TODO: check file error handling
     for _i in 0..prog.numprocs {
-        child.push(Command::new(cmd)
-            .args(args.clone())
-            .spawn()
-            .expect("failed to execute child")
-    )};
+        //TODO: refactor this DAEMON sah
+        child.push(if prog.stdout.is_empty() && prog.stderr.is_empty() {
+            Command::new(cmd_name)
+                .args(args.clone())
+                .stderr(Stdio::null())
+                .stdout(Stdio::null())
+                .stdin(Stdio::null())
+                .spawn()
+                .expect("failed to execute child")
+        } else if prog.stdout.is_empty() && !prog.stderr.is_empty() {
+            let f = File::create(&prog.stderr);
+            Command::new(cmd_name)
+                .args(args.clone())
+                .stderr(f.unwrap())
+                .stdout(Stdio::null())
+                .stdin(Stdio::null())
+                .spawn()
+                .expect("failed to execute child")
+        } else if !prog.stdout.is_empty() && !prog.stderr.is_empty() {
+            let f = File::create(&prog.stderr);
+            let g = File::create(&prog.stdout);
+            Command::new(cmd_name)
+                .args(args.clone())
+                .stderr(f.unwrap())
+                .stdout(g.unwrap())
+                .stdin(Stdio::null())
+                .spawn()
+                .expect("failed to execute child")
+        } else {
+            let g = File::create(&prog.stdout);
+            Command::new(cmd_name)
+                .args(args.clone())
+                .stderr(Stdio::null())
+                .stdout(g.unwrap())
+                .stdin(Stdio::null())
+                .spawn()
+                .expect("failed to execute child")
+        });
+    };
     child
 }
