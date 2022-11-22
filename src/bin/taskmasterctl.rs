@@ -19,7 +19,7 @@ fn get_command(line: String, conf: &Config) -> () {
 
 fn main() -> Result<()> {
     // `()` can be used when no completer is required
-    let conf = config::get("cfg/good/cat.yaml".to_string());
+    let conf = config::from_file("cfg/good/cat.yaml".to_string());
     let mut rl = Editor::<()>::new()?;
     if rl.load_history("history.txt").is_err() {
         println!("No previous history.");
