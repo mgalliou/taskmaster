@@ -15,7 +15,7 @@ impl RestartPolicy {
         match s {
             "always" => RestartPolicy::Always,
             "never" => RestartPolicy::Never,
-            "expected" => RestartPolicy::Unexpected,
+            "unexpected" => RestartPolicy::Unexpected,
             &_ => panic!("RestartPolicy is not one of `always`, `never` or `unexpected`: {}", s),
         }
     }
@@ -34,8 +34,7 @@ pub struct ProgramConfig {
     pub starttime: i64,
     pub stopsignal: String,
     pub stoptime: i64,
-    //TODO: should be of type Vec<Hashmap<String, String>>
-    pub env: Vec<String>,
+    pub env: HashMap<String, String>,
 }
 
 #[derive(Debug)]
@@ -46,7 +45,7 @@ pub struct Config {
 fn get_enum_field(prog: (&Yaml, &Yaml), field: &str) -> RestartPolicy {
     match prog.1[field].as_str() {
         Some(s) => RestartPolicy::from_str(s),
-        None => panic!("field `{}` no found", field)
+        None => panic!("field not found or invalid: {}", field)
     }
 }
 
@@ -54,39 +53,41 @@ fn get_enum_field(prog: (&Yaml, &Yaml), field: &str) -> RestartPolicy {
 fn get_bool_field(prog: (&Yaml, &Yaml), field: &str) -> bool {
     match prog.1[field].as_bool() {
         Some(s) => s,
-        None => panic!("field `{}` no found", field),
+        None => panic!("field not found or not a boolean: {}", field),
     }
 }
 
 fn get_num_vec_field(prog: (&Yaml, &Yaml), field: &str) -> Vec<i64> {
     let f = match prog.1[field].clone().into_vec() {
         Some(v) => v,
-        None => panic!("field `{}` no found", field),
+        None => panic!("field not found: {}", field),
     };
     //TODO: better error handling if a field is not a number
-    f.into_iter().map(|n| n.as_i64().unwrap()).collect::<Vec<i64>>()
+    f.into_iter().map(|n| n.as_i64().expect("field not a number")).collect::<Vec<i64>>()
 }
 
 fn get_num_field(prog: (&Yaml, &Yaml), field: &str) -> i64 {
     match prog.1[field].as_i64() {
         Some(s) => s,
-        None => panic!("field `{}` no found", field)
+        None => panic!("field not found or not a number: {}", field)
     }
 }
 
-fn get_vec_str_field(prog: (&Yaml, &Yaml), field: &str) -> Vec<String> {
-    let f = match prog.1[field].clone().into_vec() {
-        Some(v) => v,
-        None => panic!("field `{}` no found", field),
+fn get_hash_str_field(prog: (&Yaml, &Yaml), field: &str) -> HashMap<String, String> {
+    let f = match prog.1[field].clone().into_hash() {
+        Some(h) => h,
+        None => panic!("invalid or field not found: {}", field),
     };
-    //TODO: better error handling if a field is not a string
-    f.into_iter().map(|n| n.as_str().unwrap().to_string()).collect::<Vec<String>>()
+    f.into_iter().map(|n| -> (String, String) {
+        (n.0.into_string().expect("hashmap key should be a string"),
+        n.1.into_string().expect("hashmap value should be a string"))
+    }).collect::<HashMap<String, String>>()
 }
 
 fn get_str_field(prog: (&Yaml, &Yaml), field: &str) -> String {
     match prog.1[field].as_str() {
         Some(s) => s.to_string(),
-        None => panic!("field `{}` no found", field)
+        None => panic!("field not found or not a string: {}", field)
     }
 }
 
@@ -111,10 +112,10 @@ fn get_prog_conf(yaml: &Yaml) -> HashMap<String, ProgramConfig> {
             startretries: get_num_field(e, "startretries"),
             starttime: get_num_field(e, "starttime"),
             stopsignal: get_str_field(e, "stopsignal"),
-            stoptime: get_num_field(e, "stoptime:"),
+            stoptime: get_num_field(e, "stoptime"),
             stdout: get_str_field(e, "stdout"),
             stderr: get_str_field(e, "stderr"),
-            env: get_vec_str_field(e, "env"),
+            env: get_hash_str_field(e, "env"),
         });
     }
     return prog_conf
@@ -150,6 +151,6 @@ mod tests {
         assert_eq!(c.programs["cat"].stoptime, 10);
         assert_eq!(c.programs["cat"].stdout, "/tmp/cat.stdout");
         assert_eq!(c.programs["cat"].stderr, "/tmp/cat.stderr");
-        //TODO: add env test
+        //TODO: add test for env
     }
 }

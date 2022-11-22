@@ -15,4 +15,4 @@ programs:
     stderr: "/tmp/cat.stderr"
     env:
       STARTED_BY: taskmaster
-      ANSWER: 42
+      ANSWER: "42"
