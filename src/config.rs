@@ -1,14 +1,13 @@
-use std::fs::{self, File};
 use std::collections::HashMap;
+use std::fs::{self, File};
 use std::process::Stdio;
 use yaml_rust::{Yaml, YamlLoader};
-
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RestartPolicy {
     Always,
     Never,
-    Unexpected
+    Unexpected,
 }
 
 impl RestartPolicy {
@@ -17,7 +16,10 @@ impl RestartPolicy {
             "always" => RestartPolicy::Always,
             "never" => RestartPolicy::Never,
             "unexpected" => RestartPolicy::Unexpected,
-            &_ => panic!("RestartPolicy is not one of `always`, `never` or `unexpected`: {}", s),
+            &_ => panic!(
+                "RestartPolicy is not one of `always`, `never` or `unexpected`: {}",
+                s
+            ),
         }
     }
 }
@@ -62,16 +64,15 @@ impl ProgramConfig {
 
 #[derive(Debug)]
 pub struct Config {
-    pub programs: HashMap<String, ProgramConfig>
+    pub programs: HashMap<String, ProgramConfig>,
 }
 
 fn get_enum_field(prog: (&Yaml, &Yaml), field: &str) -> RestartPolicy {
     match prog.1[field].as_str() {
         Some(s) => RestartPolicy::from_str(s),
-        None => panic!("field not found or invalid: {}", field)
+        None => panic!("field not found or invalid: {}", field),
     }
 }
-
 
 fn get_bool_field(prog: (&Yaml, &Yaml), field: &str) -> bool {
     match prog.1[field].as_bool() {
@@ -86,20 +87,22 @@ fn get_num_vec_field(prog: (&Yaml, &Yaml), field: &str) -> Vec<i64> {
         None => panic!("field not found: {}", field),
     };
     //TODO: better error handling if a field is not a number
-    f.into_iter().map(|n| n.as_i64().expect("field not a number")).collect::<Vec<i64>>()
+    f.into_iter()
+        .map(|n| n.as_i64().expect("field not a number"))
+        .collect::<Vec<i64>>()
 }
 
 fn get_umask_field(prog: (&Yaml, &Yaml), field: &str) -> u32 {
     match prog.1[field].as_i64() {
         Some(s) => u32::from_str_radix(s.to_string().as_str(), 8).unwrap(),
-        None => panic!("field not found or not a number: {}", field)
+        None => panic!("field not found or not a number: {}", field),
     }
 }
 
 fn get_num_field(prog: (&Yaml, &Yaml), field: &str) -> i64 {
     match prog.1[field].as_i64() {
         Some(s) => s,
-        None => panic!("field not found or not a number: {}", field)
+        None => panic!("field not found or not a number: {}", field),
     }
 }
 
@@ -108,16 +111,20 @@ fn get_hash_str_field(prog: (&Yaml, &Yaml), field: &str) -> HashMap<String, Stri
         Some(h) => h,
         None => panic!("invalid or field not found: {}", field),
     };
-    f.into_iter().map(|n| -> (String, String) {
-        (n.0.into_string().expect("hashmap key should be a string"),
-        n.1.into_string().expect("hashmap value should be a string"))
-    }).collect::<HashMap<String, String>>()
+    f.into_iter()
+        .map(|n| -> (String, String) {
+            (
+                n.0.into_string().expect("hashmap key should be a string"),
+                n.1.into_string().expect("hashmap value should be a string"),
+            )
+        })
+        .collect::<HashMap<String, String>>()
 }
 
 fn get_str_field(prog: (&Yaml, &Yaml), field: &str) -> String {
     match prog.1[field].as_str() {
         Some(s) => s.to_string(),
-        None => panic!("field not found or not a string: {}", field)
+        None => panic!("field not found or not a string: {}", field),
     }
 }
 
@@ -133,24 +140,27 @@ fn get_prog_conf(yaml: &Yaml) -> HashMap<String, ProgramConfig> {
     let programs = yaml["programs"].as_hash().expect("no program field found");
 
     for e in programs.into_iter() {
-        prog_conf.insert(get_name(e), ProgramConfig {
-            cmd: get_str_field(e, "cmd"),
-            numprocs: get_num_field(e, "numprocs"),
-            umask: get_umask_field(e, "umask"),
-            workingdir: get_str_field(e, "workingdir"),
-            autostart: get_bool_field(e, "autostart"),
-            autorestart: get_enum_field(e, "autorestart"),
-            exitcodes: get_num_vec_field(e, "exitcodes"),
-            startretries: get_num_field(e, "startretries"),
-            starttime: get_num_field(e, "starttime"),
-            stopsignal: get_str_field(e, "stopsignal"),
-            stoptime: get_num_field(e, "stoptime"),
-            stdout: get_str_field(e, "stdout"),
-            stderr: get_str_field(e, "stderr"),
-            env: get_hash_str_field(e, "env"),
-        });
+        prog_conf.insert(
+            get_name(e),
+            ProgramConfig {
+                cmd: get_str_field(e, "cmd"),
+                numprocs: get_num_field(e, "numprocs"),
+                umask: get_umask_field(e, "umask"),
+                workingdir: get_str_field(e, "workingdir"),
+                autostart: get_bool_field(e, "autostart"),
+                autorestart: get_enum_field(e, "autorestart"),
+                exitcodes: get_num_vec_field(e, "exitcodes"),
+                startretries: get_num_field(e, "startretries"),
+                starttime: get_num_field(e, "starttime"),
+                stopsignal: get_str_field(e, "stopsignal"),
+                stoptime: get_num_field(e, "stoptime"),
+                stdout: get_str_field(e, "stdout"),
+                stderr: get_str_field(e, "stderr"),
+                env: get_hash_str_field(e, "env"),
+            },
+        );
     }
-    return prog_conf
+    return prog_conf;
 }
 
 pub fn from_str(str: String) -> Config {
@@ -158,7 +168,9 @@ pub fn from_str(str: String) -> Config {
         Ok(yaml) => yaml,
         Err(error) => panic!("Problem converting string to yaml object: {:?}", error),
     };
-    return Config { programs: get_prog_conf(&yaml[0]) };
+    return Config {
+        programs: get_prog_conf(&yaml[0]),
+    };
 }
 
 pub fn from_file(path: String) -> Config {
@@ -171,8 +183,8 @@ pub fn from_file(path: String) -> Config {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
     use crate::config;
+    use std::collections::HashMap;
 
     #[test]
     fn it_works() {
@@ -182,7 +194,10 @@ mod tests {
         assert_eq!(c.programs["cat"].umask, 0o022);
         assert_eq!(c.programs["cat"].workingdir, "/");
         assert_eq!(c.programs["cat"].autostart, true);
-        assert_eq!(c.programs["cat"].autorestart, config::RestartPolicy::Unexpected);
+        assert_eq!(
+            c.programs["cat"].autorestart,
+            config::RestartPolicy::Unexpected
+        );
         assert_eq!(c.programs["cat"].exitcodes, vec![0, 2]);
         assert_eq!(c.programs["cat"].startretries, 3);
         assert_eq!(c.programs["cat"].starttime, 5);
@@ -190,6 +205,12 @@ mod tests {
         assert_eq!(c.programs["cat"].stoptime, 10);
         assert_eq!(c.programs["cat"].stdout, "/tmp/cat.stdout");
         assert_eq!(c.programs["cat"].stderr, "/tmp/cat.stderr");
-        assert_eq!(c.programs["cat"].env, HashMap::from([("STARTED_BY".to_string(), "taskmaster".to_string()),("ANSWER".to_string(), "42".to_string())]));
+        assert_eq!(
+            c.programs["cat"].env,
+            HashMap::from([
+                ("STARTED_BY".to_string(), "taskmaster".to_string()),
+                ("ANSWER".to_string(), "42".to_string())
+            ])
+        );
     }
 }

@@ -1,13 +1,9 @@
-use std::process::Child;
-
 use rustyline::error::ReadlineError;
 use rustyline::{Editor, Result};
-use taskmaster::launch_process;
-use taskmaster::launch_process::ProcessInfo;
-use taskmaster::config::{Config, ProgramConfig};
-use taskmaster::config;
+use taskmaster::config::{self, Config};
+use taskmaster::launch_process::{self, ProcessInfo};
 
-fn get_command(line: String, conf: &Config, prog_list: &ProcessInfo) -> ProcessInfo {
+fn get_command(line: String, conf: &Config, _prog_list: &ProcessInfo) -> ProcessInfo {
     let command = line.split_whitespace().collect::<Vec<&str>>();
     match command[0] {
         "start" => launch_process::start(command, conf),
@@ -16,7 +12,7 @@ fn get_command(line: String, conf: &Config, prog_list: &ProcessInfo) -> ProcessI
         //"restart" => launch_proces::restart(command, conf),
         //"reload" => launch_proces::reload(command, conf),
         //"exit" => launch_proces::exit(command, conf),
-        &_ => Vec::new()
+        &_ => Vec::new(),
     }
 }
 
@@ -35,21 +31,20 @@ fn main() -> Result<()> {
                 rl.add_history_entry(line.as_str());
                 prog_list.append(&mut get_command(line.to_string(), &conf, &prog_list));
                 println!(" {:?}", prog_list);
-            },
+            }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");
-                break
-            },
+                break;
+            }
             Err(ReadlineError::Eof) => {
                 println!("CTRL-D");
-                break
-            },
+                break;
+            }
             Err(err) => {
                 println!("Error: {:?}", err);
-                break
+                break;
             }
         }
     }
     rl.save_history("history.txt")
 }
-
