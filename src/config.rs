@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use std::process::Stdio;
 use yaml_rust::{Yaml, YamlLoader};
 
-#[derive(Debug, Clone)]
-#[derive(PartialEq)]
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum RestartPolicy {
     Always,
     Never,
@@ -27,6 +27,7 @@ pub struct ProgramConfig {
     pub cmd: String,
     pub numprocs: i64,
     pub umask: u16,
+    pub workingdir: String,
     pub autostart: bool,
     pub autorestart: RestartPolicy,
     pub exitcodes: Vec<i64>,
@@ -136,6 +137,7 @@ fn get_prog_conf(yaml: &Yaml) -> HashMap<String, ProgramConfig> {
             cmd: get_str_field(e, "cmd"),
             numprocs: get_num_field(e, "numprocs"),
             umask: get_umask_field(e, "umask"),
+            workingdir: get_str_field(e, "workingdir"),
             autostart: get_bool_field(e, "autostart"),
             autorestart: get_enum_field(e, "autorestart"),
             exitcodes: get_num_vec_field(e, "exitcodes"),
@@ -170,7 +172,6 @@ pub fn from_file(path: String) -> Config {
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
-
     use crate::config;
 
     #[test]
@@ -179,6 +180,7 @@ mod tests {
         assert_eq!(c.programs["cat"].cmd, "/bin/cat");
         assert_eq!(c.programs["cat"].numprocs, 1);
         assert_eq!(c.programs["cat"].umask, 0o022);
+        assert_eq!(c.programs["cat"].workingdir, "/");
         assert_eq!(c.programs["cat"].autostart, true);
         assert_eq!(c.programs["cat"].autorestart, config::RestartPolicy::Unexpected);
         assert_eq!(c.programs["cat"].exitcodes, vec![0, 2]);

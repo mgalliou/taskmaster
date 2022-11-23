@@ -3,6 +3,7 @@ programs:
     cmd: "/bin/cat"
     numprocs: 1
     umask: 022
+    workingdir: "/"
     autostart: true
     autorestart: unexpected
     exitcodes:
