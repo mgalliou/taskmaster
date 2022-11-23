@@ -35,22 +35,6 @@ fn reaload(command: Vec<&str>, conf: &Config) -> () {
 fn exit(command: Vec<&str>, conf: &Config) -> () {
 }
 
-fn get_stdout(stdout: &String) -> Stdio {
-    if stdout.is_empty() {
-        Stdio::null()
-    } else {
-        Stdio::from(File::create(stdout).unwrap())
-    }
-}
-
-fn get_stderr(stderr: &String) -> Stdio {
-    if stderr.is_empty() {
-        Stdio::null()
-    } else {
-        Stdio::from(File::create(stderr).unwrap())
-    }
-}
-
 fn launch_process(prog: &ProgramConfig) -> Vec<Child> {
     let mut cmd_with_args = prog.cmd.split_whitespace();
     let cmd_name = match cmd_with_args.nth(0) {
@@ -59,12 +43,11 @@ fn launch_process(prog: &ProgramConfig) -> Vec<Child> {
     };
     let args = cmd_with_args.skip(1);
     let mut child: Vec<Child> = Vec::new();
-    // TODO: check file error handling
     for _i in 0..prog.numprocs {
         let cmd = Command::new(cmd_name)
             .args(args.clone())
-            .stdout(get_stdout(&prog.stdout))
-            .stderr(get_stderr(&prog.stderr))
+            .stdout(prog.open_stdout())
+            .stderr(prog.open_stderr())
             .stdin(Stdio::null())
             .spawn()
             .expect("failed to execute child");

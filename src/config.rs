@@ -1,5 +1,6 @@
-use std::fs;
+use std::fs::{self, File};
 use std::collections::HashMap;
+use std::process::Stdio;
 use yaml_rust::{Yaml, YamlLoader};
 
 #[derive(Debug, Clone)]
@@ -35,6 +36,26 @@ pub struct ProgramConfig {
     pub stopsignal: String,
     pub stoptime: i64,
     pub env: HashMap<String, String>,
+}
+
+impl ProgramConfig {
+    pub fn open_stdout(&self) -> Stdio {
+        if self.stdout.is_empty() {
+            Stdio::null()
+        } else {
+            //TODO: handle error correctly
+            Stdio::from(File::create(&self.stdout).unwrap())
+        }
+    }
+
+    pub fn open_stderr(&self) -> Stdio {
+        if self.stderr.is_empty() {
+            Stdio::null()
+        } else {
+            //TODO: handle error correctly
+            Stdio::from(File::create(&self.stderr).unwrap())
+        }
+    }
 }
 
 #[derive(Debug)]
