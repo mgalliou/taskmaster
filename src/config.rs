@@ -26,6 +26,7 @@ impl RestartPolicy {
 pub struct ProgramConfig {
     pub cmd: String,
     pub numprocs: i64,
+    pub umask: u16,
     pub autostart: bool,
     pub autorestart: RestartPolicy,
     pub exitcodes: Vec<i64>,
@@ -87,6 +88,13 @@ fn get_num_vec_field(prog: (&Yaml, &Yaml), field: &str) -> Vec<i64> {
     f.into_iter().map(|n| n.as_i64().expect("field not a number")).collect::<Vec<i64>>()
 }
 
+fn get_umask_field(prog: (&Yaml, &Yaml), field: &str) -> u16 {
+    match prog.1[field].as_i64() {
+        Some(s) => u16::from_str_radix(s.to_string().as_str(), 8).unwrap(),
+        None => panic!("field not found or not a number: {}", field)
+    }
+}
+
 fn get_num_field(prog: (&Yaml, &Yaml), field: &str) -> i64 {
     match prog.1[field].as_i64() {
         Some(s) => s,
@@ -127,6 +135,7 @@ fn get_prog_conf(yaml: &Yaml) -> HashMap<String, ProgramConfig> {
         prog_conf.insert(get_name(e), ProgramConfig {
             cmd: get_str_field(e, "cmd"),
             numprocs: get_num_field(e, "numprocs"),
+            umask: get_umask_field(e, "umask"),
             autostart: get_bool_field(e, "autostart"),
             autorestart: get_enum_field(e, "autorestart"),
             exitcodes: get_num_vec_field(e, "exitcodes"),
@@ -169,6 +178,7 @@ mod tests {
         let c = config::from_file("cfg/good/cat.yaml".to_string());
         assert_eq!(c.programs["cat"].cmd, "/bin/cat");
         assert_eq!(c.programs["cat"].numprocs, 1);
+        assert_eq!(c.programs["cat"].umask, 0o022);
         assert_eq!(c.programs["cat"].autostart, true);
         assert_eq!(c.programs["cat"].autorestart, config::RestartPolicy::Unexpected);
         assert_eq!(c.programs["cat"].exitcodes, vec![0, 2]);

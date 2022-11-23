@@ -2,6 +2,7 @@ programs:
   cat:
     cmd: "/bin/cat"
     numprocs: 1
+    umask: 022
     autostart: true
     autorestart: unexpected
     exitcodes:
