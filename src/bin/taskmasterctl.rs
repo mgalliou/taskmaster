@@ -3,10 +3,11 @@ use std::process::Child;
 use rustyline::error::ReadlineError;
 use rustyline::{Editor, Result};
 use taskmaster::launch_process;
+use taskmaster::launch_process::ProcessInfo;
 use taskmaster::config::{Config, ProgramConfig};
 use taskmaster::config;
 
-fn get_command(line: String, conf: &Config, prog_list: &Vec<(ProgramConfig, Vec<Child>)>) -> Vec<(ProgramConfig, Vec<Child>)> {
+fn get_command(line: String, conf: &Config, prog_list: &ProcessInfo) -> ProcessInfo {
     let command = line.split_whitespace().collect::<Vec<&str>>();
     match command[0] {
         "start" => launch_process::start(command, conf),
@@ -22,7 +23,7 @@ fn get_command(line: String, conf: &Config, prog_list: &Vec<(ProgramConfig, Vec<
 fn main() -> Result<()> {
     // `()` can be used when no completer is required
     let conf = config::from_file("cfg/good/cat.yaml".to_string());
-    let mut prog_list: Vec<(ProgramConfig, Vec<Child>)> = Vec::new();
+    let mut prog_list: launch_process::ProcessInfo = Vec::new();
     let mut rl = Editor::<()>::new()?;
     if rl.load_history("history.txt").is_err() {
         println!("No previous history.");

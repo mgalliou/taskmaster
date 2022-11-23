@@ -26,7 +26,7 @@ impl RestartPolicy {
 pub struct ProgramConfig {
     pub cmd: String,
     pub numprocs: i64,
-    pub umask: u16,
+    pub umask: u32,
     pub workingdir: String,
     pub autostart: bool,
     pub autorestart: RestartPolicy,
@@ -89,9 +89,9 @@ fn get_num_vec_field(prog: (&Yaml, &Yaml), field: &str) -> Vec<i64> {
     f.into_iter().map(|n| n.as_i64().expect("field not a number")).collect::<Vec<i64>>()
 }
 
-fn get_umask_field(prog: (&Yaml, &Yaml), field: &str) -> u16 {
+fn get_umask_field(prog: (&Yaml, &Yaml), field: &str) -> u32 {
     match prog.1[field].as_i64() {
-        Some(s) => u16::from_str_radix(s.to_string().as_str(), 8).unwrap(),
+        Some(s) => u32::from_str_radix(s.to_string().as_str(), 8).unwrap(),
         None => panic!("field not found or not a number: {}", field)
     }
 }

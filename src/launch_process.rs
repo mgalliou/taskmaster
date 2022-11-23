@@ -1,6 +1,9 @@
 use std::process::{Command, Child, Stdio};
+extern crate libc;
 
 use crate::config::{Config,ProgramConfig};
+
+pub type ProcessInfo = Vec<(ProgramConfig, Vec<Child>)>;
 
 fn status(command: Vec<&str>, conf: &Config) -> () {
 }
@@ -40,6 +43,7 @@ fn launch_process(prog: &ProgramConfig) -> Vec<Child> {
         Some(n) => n,
         None => panic!("command not found")
     };
+    let mode = unsafe { libc::umask(prog.umask) };
     let args = cmd_with_args.skip(1);
     let mut child: Vec<Child> = Vec::new();
     for _i in 0..prog.numprocs {
@@ -48,9 +52,11 @@ fn launch_process(prog: &ProgramConfig) -> Vec<Child> {
             .stdout(prog.open_stdout())
             .stderr(prog.open_stderr())
             .stdin(Stdio::null())
+            .current_dir(prog.workingdir.clone())
             .spawn()
             .expect("failed to execute child");
         child.push(cmd)
     };
+    unsafe { libc::umask(mode); }
     child
 }
