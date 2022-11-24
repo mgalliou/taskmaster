@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::process::Child;
 
 use crate::config::ProgramConfig;
@@ -9,7 +10,7 @@ pub mod restart;
 pub mod reload;
 pub mod exit;
 
-pub type ProcessInfo = Vec<(ProgramConfig, Child)>;
+pub type ProcessInfo = HashMap<String, (ProgramConfig, Child)>;
 pub struct CommandResult {
     ok: bool,
     command: String,
