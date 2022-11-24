@@ -1,26 +1,21 @@
+use std::io::{Write, Read};
+use std::os::unix::net::UnixStream;
+
 use rustyline::error::ReadlineError;
 use rustyline::{Editor, Result};
 use taskmaster::config::{self, Config};
 use taskmaster::daemon::start::{self};
 use taskmaster::daemon::ProcessInfo;
 
-fn get_command(line: String, conf: &Config, _proc_list: &ProcessInfo) -> ProcessInfo {
-    let cmd: Vec<&str> = line.split_whitespace().collect::<Vec<&str>>();
-    match cmd[0] {
-        "start" => start::start(cmd, conf),
-        //"status" => launch_proces::status(command, conf),
-        //"stop" => launch_proces::stop(command, conf),
-        //"restart" => launch_proces::restart(command, conf),
-        //"reload" => launch_proces::reload(command, conf),
-        //"exit" => launch_proces::exit(command, conf),
-        &_ => Vec::new(),
-    }
+fn send_message(line: String) -> std::io::Result<()> {
+    let mut stream = UnixStream::connect("/tmp/taskmaster.socket")?;
+    stream.write_all(line.as_bytes())?;
+    let mut response = String::new();
+    Ok(())
 }
 
 fn main() -> Result<()> {
     // `()` can be used when no completer is required
-    let conf = config::from_file("cfg/good/cat.yaml".to_string());
-    let mut proc_list: ProcessInfo = Vec::new();
     let mut rl = Editor::<()>::new()?;
     if rl.load_history("history.txt").is_err() {
         println!("No previous history.");
@@ -30,8 +25,7 @@ fn main() -> Result<()> {
         match readline {
             Ok(line) => {
                 rl.add_history_entry(line.as_str());
-                proc_list.append(&mut get_command(line.to_string(), &conf, &proc_list));
-                println!(" {:?}", proc_list);
+                send_message(line);
             }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");
