@@ -3,10 +3,10 @@ use rustyline::{Editor, Result};
 use taskmaster::config::{self, Config};
 use taskmaster::launch_process::{self, ProcessInfo};
 
-fn get_command(line: String, conf: &Config, _prog_list: &ProcessInfo) -> ProcessInfo {
-    let command = line.split_whitespace().collect::<Vec<&str>>();
-    match command[0] {
-        "start" => launch_process::start(command, conf),
+fn get_command(line: String, conf: &Config, _proc_list: &ProcessInfo) -> ProcessInfo {
+    let cmd: Vec<&str> = line.split_whitespace().collect::<Vec<&str>>();
+    match cmd[0] {
+        "start" => launch_process::start(cmd, conf),
         //"status" => launch_proces::status(command, conf),
         //"stop" => launch_proces::stop(command, conf),
         //"restart" => launch_proces::restart(command, conf),
@@ -19,7 +19,7 @@ fn get_command(line: String, conf: &Config, _prog_list: &ProcessInfo) -> Process
 fn main() -> Result<()> {
     // `()` can be used when no completer is required
     let conf = config::from_file("cfg/good/cat.yaml".to_string());
-    let mut prog_list: launch_process::ProcessInfo = Vec::new();
+    let mut proc_list: launch_process::ProcessInfo = Vec::new();
     let mut rl = Editor::<()>::new()?;
     if rl.load_history("history.txt").is_err() {
         println!("No previous history.");
@@ -29,8 +29,8 @@ fn main() -> Result<()> {
         match readline {
             Ok(line) => {
                 rl.add_history_entry(line.as_str());
-                prog_list.append(&mut get_command(line.to_string(), &conf, &prog_list));
-                println!(" {:?}", prog_list);
+                proc_list.append(&mut get_command(line.to_string(), &conf, &proc_list));
+                println!(" {:?}", proc_list);
             }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");

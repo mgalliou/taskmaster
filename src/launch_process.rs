@@ -5,9 +5,9 @@ use crate::config::{Config, ProgramConfig};
 
 pub type ProcessInfo = Vec<(ProgramConfig, Vec<Child>)>;
 
-pub fn start(command: Vec<&str>, conf: &Config) -> Vec<(ProgramConfig, Vec<Child>)> {
-    let mut list: Vec<(ProgramConfig, Vec<Child>)> = Vec::new();
-    if command.len() == 1 {
+pub fn start(cmd: Vec<&str>, conf: &Config) -> ProcessInfo {
+    let mut list: ProcessInfo = Vec::new();
+    if cmd.len() == 1 {
         for (name, prog) in &conf.programs {
             if !(name.is_empty()) {
                 // TODO: check if *prog.clone works
@@ -15,10 +15,10 @@ pub fn start(command: Vec<&str>, conf: &Config) -> Vec<(ProgramConfig, Vec<Child
             }
         }
     } else {
-        if conf.programs.contains_key(command[1]) {
+        if conf.programs.contains_key(cmd[1]) {
             list.push((
-                ((conf.programs[command[1]]).clone()),
-                launch_process(&conf.programs[command[1]]),
+                ((conf.programs[cmd[1]]).clone()),
+                launch_process(&conf.programs[cmd[1]]),
             ));
         }
     }
@@ -36,14 +36,15 @@ fn reaload(command: Vec<&str>, conf: &Config) -> () {}
 fn exit(command: Vec<&str>, conf: &Config) -> () {}
 
 fn launch_process(prog: &ProgramConfig) -> Vec<Child> {
-    let mut cmd_with_args = prog.cmd.split_whitespace();
-    let cmd_name = match cmd_with_args.nth(0) {
+    let mut argv = prog.cmd.split_whitespace();
+    let cmd_name = match argv.nth(0) {
         Some(n) => n,
+        //TODO: should not panic
         None => panic!("command not found"),
     };
+    let args = argv.skip(1);
+    let mut childs: Vec<Child> = Vec::new();
     let mode = unsafe { libc::umask(prog.umask) };
-    let args = cmd_with_args.skip(1);
-    let mut child: Vec<Child> = Vec::new();
     for _i in 0..prog.numprocs {
         let cmd = Command::new(cmd_name)
             .args(args.clone())
@@ -53,10 +54,10 @@ fn launch_process(prog: &ProgramConfig) -> Vec<Child> {
             .current_dir(prog.workingdir.clone())
             .spawn()
             .expect("failed to execute child");
-        child.push(cmd)
+        childs.push(cmd)
     }
     unsafe {
         libc::umask(mode);
     }
-    child
+    childs
 }
