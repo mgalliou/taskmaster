@@ -1,18 +1,6 @@
-use std::io::{Write, Read};
-use std::os::unix::net::UnixStream;
-
 use rustyline::error::ReadlineError;
 use rustyline::{Editor, Result};
-use taskmaster::config::{self, Config};
-use taskmaster::daemon::start::{self};
-use taskmaster::daemon::ProcessInfo;
-
-fn send_message(line: String) -> std::io::Result<()> {
-    let mut stream = UnixStream::connect("/tmp/taskmaster.socket")?;
-    stream.write_all(line.as_bytes())?;
-    let mut response = String::new();
-    Ok(())
-}
+use taskmaster::common::comm::send_message;
 
 fn main() -> Result<()> {
     // `()` can be used when no completer is required

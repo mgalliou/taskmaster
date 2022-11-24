@@ -1,18 +1,11 @@
 extern crate yaml_rust;
 
 use std::collections::HashMap;
-use std::io::Read;
-use std::os::unix::net::{UnixStream, UnixListener};
+use std::os::unix::net::UnixListener;
 
+use taskmaster::common::comm::read_message;
 use taskmaster::config::{self, Config};
 use taskmaster::daemon::{ProcessInfo, start};
-
-fn read_message(listener: &UnixListener) -> String {
-    let mut response = String::new();
-    let (mut stream, socket) = listener.accept().expect("fail accept");
-    stream.read_to_string(&mut response).expect("failed to read stream");
-    response
-}
 
 fn exec_command(line: String, conf: &Config, proc_list: &mut ProcessInfo) -> () {
     let mut line_split: Vec<&str> = line.split_whitespace().collect::<Vec<&str>>();

@@ -6,40 +6,44 @@ use crate::config::{Config, ProgramConfig};
 use super::{CommandResult, ProcessInfo};
 extern crate libc;
 
-fn exec_cmd<I, S>(cmd_name: &str, args: I, prog: &ProgramConfig) -> io::Result<Child> 
+fn exec_cmd<I, S>(cmd_name: &str, args: I, prog_conf: &ProgramConfig) -> io::Result<Child> 
 where 
 I : IntoIterator<Item = S>,
 S : AsRef<OsStr>,
 {
-    Command::new(cmd_name)
+    let mode = unsafe {libc::umask(prog_conf.umask)};
+    let ret = Command::new(cmd_name)
         .args(args)
-        .stdout(prog.open_stdout())
-        .stderr(prog.open_stderr())
+        .stdout(prog_conf.open_stdout())
+        .stderr(prog_conf.open_stderr())
         .stdin(Stdio::null())
-        .current_dir(prog.workingdir.clone())
-        .spawn()
+        .current_dir(prog_conf.workingdir.clone())
+        .spawn();
+    unsafe {libc::umask(mode);}
+    ret
 }
-fn start_program(name: String, prog_conf: ProgramConfig, proc_list: &mut ProcessInfo) -> () {
+
+fn start_program(name: String, prog_conf: ProgramConfig, proc_list: &mut ProcessInfo) -> CommandResult {
     let mut argv = prog_conf.cmd.split_whitespace();
+    let mut res : bool = false;
     let cmd_name = match argv.nth(0) {
         Some(n) => n,
-        //TODO: should not panic
-        None => panic!("command not found"),
+        None => "",
     };
-    let args = argv.skip(1);
-    let mode = unsafe { libc::umask(prog_conf.umask) };
-    let cmd = exec_cmd(cmd_name, args.clone(), &prog_conf);
+    let args = argv.clone().skip(1);
+    let cmd = exec_cmd(cmd_name, args, &prog_conf);
     if cmd.is_ok() {
-        (*proc_list).entry(name).or_insert((prog_conf, cmd.ok().unwrap()));
+        res = true;
+        (*proc_list).entry(name.clone()).or_insert((prog_conf.clone(), cmd.ok().unwrap()));
     };
-    unsafe {
-        libc::umask(mode);
-    }
+    CommandResult::new(res, name, argv.map(|s| s.to_string()).collect::<Vec<String>>(), String::new())
 }
 
 pub fn start_numprocs(name: &str, prog_conf: &ProgramConfig, proc_list: &mut ProcessInfo) -> () {
     for i in 0..prog_conf.numprocs {
-        start_program(name.to_string() + &i.to_string(), prog_conf.clone(),proc_list);
+        let res = start_program(name.to_string() + &i.to_string(), prog_conf.clone(),proc_list);
+        if res.ok == false {
+        }
     }
 }
 
