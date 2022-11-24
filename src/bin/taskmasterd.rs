@@ -13,16 +13,33 @@ fn read_message(listener: &UnixListener) -> String {
     response
 }
 
-fn get_command(line: String, conf: &Config, _proc_list: &ProcessInfo) -> ProcessInfo {
-    let cmd: Vec<&str> = line.split_whitespace().collect::<Vec<&str>>();
-    match cmd[0] {
-        "start" => start::start(cmd, conf),
-        //"status" => launch_proces::status(command, conf),
-        //"stop" => launch_proces::stop(command, conf),
-        //"restart" => launch_proces::restart(command, conf),
-        //"reload" => launch_proces::reload(command, conf),
-        //"exit" => launch_proces::exit(command, conf),
-        &_ => Vec::new(),
+fn get_command(line: String, conf: &Config, proc_list: &mut ProcessInfo) -> () {
+    let mut line_split: Vec<&str> = line.split_whitespace().collect::<Vec<&str>>();
+    let cmd = line_split.remove(0);
+    if line_split.len() > 0 {
+        for program in line_split {
+            match cmd {
+                "start" => start::start(program, &conf.programs[program], proc_list),
+                //"status" => launch_proces::status(command, conf),
+                //"stop" => launch_proces::stop(command, conf),
+                //"restart" => launch_proces::restart(command, conf),
+                //"reload" => launch_proces::reload(command, conf),
+                //"exit" => launch_proces::exit(command, conf),
+                &_ => (),
+            }
+        }
+    } else {
+        for (program, program_config) in &conf.programs {
+            match cmd {
+                "start" => start::start(&program, &program_config, proc_list),
+                //"status" => launch_proces::status(command, conf),
+                //"stop" => launch_proces::stop(command, conf),
+                //"restart" => launch_proces::restart(command, conf),
+                //"reload" => launch_proces::reload(command, conf),
+                //"exit" => launch_proces::exit(command, conf),
+                &_ => (),
+            }
+        }
     }
 }
 
@@ -33,12 +50,12 @@ fn main() {
         println!("A socket is already present. Deleting...");
         std::fs::remove_file(path).expect("could not delete previous socket at {:?}");
     }
-    let mut listener = UnixListener::bind(path).expect("failed to open stream");
+    let listener = UnixListener::bind(path).expect("failed to open stream");
     let mut proc_list: ProcessInfo = Vec::new();
     let mut line: String;
     loop {
         line = read_message(&listener);
         println!("daemon {}", line);
-        proc_list.append(&mut get_command(line.to_string(), &conf, &proc_list));
+        get_command(line.to_string(), &conf, &mut proc_list);
     }
 }
