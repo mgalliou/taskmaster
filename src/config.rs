@@ -135,20 +135,24 @@ fn get_name(prog: (&Yaml, &Yaml)) -> String {
     }
 }
 
+fn gen_name(numprocs: i64, base_name: &String, i: i64) -> String {
+    if numprocs == 1 {
+        base_name.clone()
+    } else {
+        base_name.clone() + &i.to_string()
+    }
+}
+
 fn get_prog_conf(yaml: &Yaml) -> HashMap<String, ProgramConfig> {
     let mut prog_conf: HashMap<String, ProgramConfig> = HashMap::new();
     let programs = yaml["programs"].as_hash().expect("no program field found");
 
     for e in programs.into_iter() {
+        let base_name = get_name(e);
         let numprocs = get_num_field(e, "numprocs");
-        let mut base_name = get_name(e);
         for i in 0..numprocs {
             prog_conf.insert(
-                if numprocs == 1 {
-                    base_name.clone()
-                } else {
-                    base_name.clone() + &i.to_string()
-                },
+                gen_name(numprocs, &base_name, i),
                 ProgramConfig {
                     cmd: get_str_field(e, "cmd"),
                     numprocs: get_num_field(e, "numprocs"),
@@ -164,8 +168,7 @@ fn get_prog_conf(yaml: &Yaml) -> HashMap<String, ProgramConfig> {
                     stdout: get_str_field(e, "stdout"),
                     stderr: get_str_field(e, "stderr"),
                     env: get_hash_str_field(e, "env"),
-                },
-                );
+                });
         }
     }
     return prog_conf;
