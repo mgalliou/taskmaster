@@ -3,7 +3,7 @@ use std::os::unix::net::{UnixStream, UnixListener};
 
 //TODO: check stream result
 pub fn send_message(line: String) -> Result<()> {
-    let mut stream = UnixStream::connect("/tmp/taskmaster.socket")?;
+    let mut stream = UnixStream::connect("taskmaster.socket")?;
     stream.write_all(line.as_bytes())?;
     Ok(())
 }
