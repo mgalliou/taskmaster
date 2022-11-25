@@ -5,7 +5,7 @@ use std::os::unix::net::UnixListener;
 
 use taskmaster::common::comm::read_message;
 use taskmaster::config::{self, Config};
-use taskmaster::daemon::{ProcessInfo, start, Daemon};
+use taskmaster::daemon::{ProcessList, start, Daemon};
 
 fn main() {
     let path = "taskmaster.socket";

@@ -11,12 +11,28 @@ pub mod restart;
 pub mod reload;
 pub mod exit;
 
-pub type ProcessInfo = HashMap<String, (ProgramConfig, Child)>;
+#[derive(Debug)]
+pub enum ProcessStatus {
+    Starting,
+    Running,
+    Stopped,
+    Exited,
+    Backoff,
+    Fatal,
+}
+
+pub struct ProcessInfo {
+    pub conf: ProgramConfig,
+    pub child: Child,
+    pub status: ProcessStatus,
+}
+
+pub type ProcessList = HashMap<String, ProcessInfo>;
 
 pub struct Daemon {
     pub conf: Config,
     pub listener: UnixListener,
-    pub proc_list: ProcessInfo,
+    pub proc_list: ProcessList,
 }
 
 impl Daemon {
@@ -25,7 +41,7 @@ impl Daemon {
         let cmd = line_split.remove(0);
         match cmd {
             "start" => start::start(line_split, &self.conf, &mut self.proc_list),
-            //"status" => launch_proces::status(command, conf),
+            "status" => status::status(line_split, &self),
             //"stop" => launch_proces::stop(command, conf),
             //"restart" => launch_proces::restart(command, conf),
             //"reload" => launch_proces::reload(command, conf),
@@ -34,7 +50,7 @@ impl Daemon {
         }
     }
 
-    pub fn proc_list_mut(&mut self) -> &mut ProcessInfo {
+    pub fn proc_list_mut(&mut self) -> &mut ProcessList {
         &mut self.proc_list
     }
 }

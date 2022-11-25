@@ -140,25 +140,33 @@ fn get_prog_conf(yaml: &Yaml) -> HashMap<String, ProgramConfig> {
     let programs = yaml["programs"].as_hash().expect("no program field found");
 
     for e in programs.into_iter() {
-        prog_conf.insert(
-            get_name(e),
-            ProgramConfig {
-                cmd: get_str_field(e, "cmd"),
-                numprocs: get_num_field(e, "numprocs"),
-                umask: get_umask_field(e, "umask"),
-                workingdir: get_str_field(e, "workingdir"),
-                autostart: get_bool_field(e, "autostart"),
-                autorestart: get_enum_field(e, "autorestart"),
-                exitcodes: get_num_vec_field(e, "exitcodes"),
-                startretries: get_num_field(e, "startretries"),
-                starttime: get_num_field(e, "starttime"),
-                stopsignal: get_str_field(e, "stopsignal"),
-                stoptime: get_num_field(e, "stoptime"),
-                stdout: get_str_field(e, "stdout"),
-                stderr: get_str_field(e, "stderr"),
-                env: get_hash_str_field(e, "env"),
-            },
-        );
+        let numprocs = get_num_field(e, "numprocs");
+        let mut base_name = get_name(e);
+        for i in 0..numprocs {
+            prog_conf.insert(
+                if numprocs == 1 {
+                    base_name.clone()
+                } else {
+                    base_name.clone() + &i.to_string()
+                },
+                ProgramConfig {
+                    cmd: get_str_field(e, "cmd"),
+                    numprocs: get_num_field(e, "numprocs"),
+                    umask: get_umask_field(e, "umask"),
+                    workingdir: get_str_field(e, "workingdir"),
+                    autostart: get_bool_field(e, "autostart"),
+                    autorestart: get_enum_field(e, "autorestart"),
+                    exitcodes: get_num_vec_field(e, "exitcodes"),
+                    startretries: get_num_field(e, "startretries"),
+                    starttime: get_num_field(e, "starttime"),
+                    stopsignal: get_str_field(e, "stopsignal"),
+                    stoptime: get_num_field(e, "stoptime"),
+                    stdout: get_str_field(e, "stdout"),
+                    stderr: get_str_field(e, "stderr"),
+                    env: get_hash_str_field(e, "env"),
+                },
+                );
+        }
     }
     return prog_conf;
 }

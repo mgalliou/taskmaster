@@ -3,7 +3,7 @@ use std::io;
 use std::process::{Child, Command, Stdio};
 use crate::config::{Config, ProgramConfig};
 
-use super::{CommandResult, ProcessInfo};
+use super::{CommandResult, ProcessList, ProcessInfo, ProcessStatus};
 extern crate libc;
 
 fn exec_cmd<I, S>(cmd_name: &str, args: I, prog_conf: &ProgramConfig) -> io::Result<Child> 
@@ -23,7 +23,7 @@ S : AsRef<OsStr>,
     ret
 }
 
-fn start_program(name: String, prog_conf: ProgramConfig, proc_list: &mut ProcessInfo) -> CommandResult {
+fn start_program(name: &str, prog_conf: &ProgramConfig, proc_list: &mut ProcessList) -> CommandResult {
     let mut argv = prog_conf.cmd.split_whitespace();
     let mut res : bool = false;
     let cmd_name = match argv.nth(0) {
@@ -33,28 +33,26 @@ fn start_program(name: String, prog_conf: ProgramConfig, proc_list: &mut Process
     let args = argv.clone().skip(1);
     let cmd = exec_cmd(cmd_name, args, &prog_conf);
     if cmd.is_ok() {
+        let proc_info = ProcessInfo {
+            conf: prog_conf.clone(),
+            child: cmd.ok().unwrap(),
+            status: ProcessStatus::Starting,
+
+        };
         res = true;
-        (*proc_list).entry(name.clone()).or_insert((prog_conf.clone(), cmd.ok().unwrap()));
+        (*proc_list).entry(name.to_string()).or_insert(proc_info);
     };
-    CommandResult::new(res, name, argv.map(|s| s.to_string()).collect::<Vec<String>>(), String::new())
+    CommandResult::new(res, name.to_string(), argv.map(|s| s.to_string()).collect::<Vec<String>>(), String::new())
 }
 
-pub fn start_numprocs(name: &str, prog_conf: &ProgramConfig, proc_list: &mut ProcessInfo) -> () {
-    for i in 0..prog_conf.numprocs {
-        let res = start_program(name.to_string() + &i.to_string(), prog_conf.clone(),proc_list);
-        if res.ok == false {
-        }
-    }
-}
-
-pub fn start(line:Vec<&str>, conf: &Config, proc_list: &mut ProcessInfo) -> () {
+pub fn start(line:Vec<&str>, conf: &Config, proc_list: &mut ProcessList) -> () {
     if line.len() > 0 {
         for program in line {
-            start_numprocs(program, &conf.programs[program], proc_list);
+            start_program(program, &conf.programs[program], proc_list);
         }
     } else {
         for (program, program_config) in &conf.programs {
-            start_numprocs(&program, &program_config, proc_list);
+            start_program(program.as_str(), program_config, proc_list);
         }
     }
 }
