@@ -1,6 +1,7 @@
 use std::ffi::OsStr;
 use std::io;
 use std::process::{Child, Command, Stdio};
+use std::time::Instant;
 use crate::config::{Config, ProgramConfig};
 
 use super::{CommandResult, ProcessList, ProcessInfo, ProcessStatus};
@@ -25,7 +26,6 @@ S : AsRef<OsStr>,
 
 fn start_program(name: &str, prog_conf: &ProgramConfig, proc_list: &mut ProcessList) -> String {
     let mut argv = prog_conf.cmd.split_whitespace();
-    let mut res : bool = false;
     let cmd_name = match argv.nth(0) {
         Some(n) => n,
         None => "",
@@ -37,12 +37,14 @@ fn start_program(name: &str, prog_conf: &ProgramConfig, proc_list: &mut ProcessL
             conf: prog_conf.clone(),
             child: cmd.ok().unwrap(),
             status: ProcessStatus::Starting,
+            start_time: Instant::now(),
 
         };
-        res = true;
         (*proc_list).entry(name.to_string()).or_insert(proc_info);
-    };
-    format!("{}: ok", name)
+        format!("{}: ok", name)
+    }else {
+        format!("{}: not ok", name)
+    }
 }
 
 pub fn start(line:Vec<&str>, conf: &Config, proc_list: &mut ProcessList) -> String {

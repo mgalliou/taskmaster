@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::process::Child;
+use std::time::Instant;
 
 use crate::config::{ProgramConfig, Config};
 
@@ -26,6 +27,7 @@ pub struct ProcessInfo {
     pub conf: ProgramConfig,
     pub child: Child,
     pub status: ProcessStatus,
+    pub start_time: Instant,
 }
 
 pub type ProcessList = HashMap<String, ProcessInfo>;
