@@ -5,35 +5,24 @@ use std::os::unix::net::UnixListener;
 
 use taskmaster::common::comm::read_message;
 use taskmaster::config::{self, Config};
-use taskmaster::daemon::{ProcessInfo, start};
-
-fn exec_command(line: String, conf: &Config, proc_list: &mut ProcessInfo) -> () {
-    let mut line_split: Vec<&str> = line.split_whitespace().collect::<Vec<&str>>();
-    let cmd = line_split.remove(0);
-    match cmd {
-        "start" => start::start(line_split, conf, proc_list),
-        //"status" => launch_proces::status(command, conf),
-        //"stop" => launch_proces::stop(command, conf),
-        //"restart" => launch_proces::restart(command, conf),
-        //"reload" => launch_proces::reload(command, conf),
-        //"exit" => launch_proces::exit(command, conf),
-        &_ => (),
-    }
-}
+use taskmaster::daemon::{ProcessInfo, start, Daemon};
 
 fn main() {
-    let conf = config::from_file("cfg/good/cat.yaml".to_string());
     let path = &"/tmp/taskmaster.socket";
+    let mut daemon: Daemon = Daemon {
+        conf: config::from_file("cfg/good/cat.yaml".to_string()),
+        listener: UnixListener::bind(path).expect("failed to open stream"),
+        proc_list: HashMap::new(),
+    };
     if std::fs::metadata(path).is_ok() {
         println!("A socket is already present. Deleting...");
         std::fs::remove_file(path).expect("could not delete previous socket at {:?}");
     }
-    let listener = UnixListener::bind(path).expect("failed to open stream");
-    let mut proc_list: ProcessInfo = HashMap::new();
+
     let mut line: String;
     loop {
-        line = read_message(&listener);
+        line = read_message(&daemon.listener);
         println!("daemon {}", line);
-        exec_command(line.to_string(), &conf, &mut proc_list);
+        daemon.exec_command(line.to_string());
     }
 }
