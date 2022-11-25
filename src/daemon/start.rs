@@ -23,7 +23,7 @@ S : AsRef<OsStr>,
     ret
 }
 
-fn start_program(name: &str, prog_conf: &ProgramConfig, proc_list: &mut ProcessList) -> CommandResult {
+fn start_program(name: &str, prog_conf: &ProgramConfig, proc_list: &mut ProcessList) -> String {
     let mut argv = prog_conf.cmd.split_whitespace();
     let mut res : bool = false;
     let cmd_name = match argv.nth(0) {
@@ -42,17 +42,19 @@ fn start_program(name: &str, prog_conf: &ProgramConfig, proc_list: &mut ProcessL
         res = true;
         (*proc_list).entry(name.to_string()).or_insert(proc_info);
     };
-    CommandResult::new(res, name.to_string(), argv.map(|s| s.to_string()).collect::<Vec<String>>(), String::new())
+    format!("{}: ok", name)
 }
 
-pub fn start(line:Vec<&str>, conf: &Config, proc_list: &mut ProcessList) -> () {
+pub fn start(line:Vec<&str>, conf: &Config, proc_list: &mut ProcessList) -> String {
+    let mut response: String = String::new();
     if line.len() > 0 {
         for program in line {
-            start_program(program, &conf.programs[program], proc_list);
+            response += &start_program(program, &conf.programs[program], proc_list);
         }
     } else {
         for (program, program_config) in &conf.programs {
-            start_program(program.as_str(), program_config, proc_list);
+            response += &start_program(program.as_str(), program_config, proc_list);
         }
     }
+    response
 }

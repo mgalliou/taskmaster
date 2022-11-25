@@ -4,7 +4,11 @@ use std::os::unix::net::{UnixStream, UnixListener};
 //TODO: check stream result
 pub fn send_message(line: String) -> Result<()> {
     let mut stream = UnixStream::connect("taskmaster.socket")?;
-    stream.write_all(line.as_bytes())?;
+    let mut response = String::new();
+    stream.write(line.as_bytes())?;
+    stream.shutdown(std::net::Shutdown::Write)?;
+    stream.read_to_string(&mut response).expect("failed to read stream");
+    println!("ctl response: {}", response);
     Ok(())
 }
 

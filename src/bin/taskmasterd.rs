@@ -1,7 +1,7 @@
 extern crate yaml_rust;
 
 use std::collections::HashMap;
-use std::os::unix::net::UnixListener;
+use std::os::unix::net::{UnixListener, UnixStream};
 
 use taskmaster::common::comm::read_message;
 use taskmaster::config::{self, Config};
@@ -21,8 +21,10 @@ fn main() {
 
     let mut line: String;
     loop {
-        line = read_message(&daemon.listener);
+        let (line, mut stream) = daemon.receive_cmd();
         println!("daemon {}", line);
-        daemon.exec_command(line.to_string());
+        let response = daemon.exec_command(line.to_string());
+        println!("reponse: {}", response);
+        daemon.send_response( response, &mut stream);
     }
 }

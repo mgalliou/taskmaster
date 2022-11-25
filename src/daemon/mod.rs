@@ -1,5 +1,6 @@
 use std::collections::HashMap;
-use std::os::unix::net::UnixListener;
+use std::io::{Read, Write};
+use std::os::unix::net::{UnixListener, UnixStream};
 use std::process::Child;
 
 use crate::config::{ProgramConfig, Config};
@@ -36,7 +37,7 @@ pub struct Daemon {
 }
 
 impl Daemon {
-    pub fn exec_command(&mut self, line: String) -> () {
+    pub fn exec_command(&mut self, line: String) -> String {
         let mut line_split: Vec<&str> = line.split_whitespace().collect::<Vec<&str>>();
         let cmd = line_split.remove(0);
         match cmd {
@@ -46,13 +47,20 @@ impl Daemon {
             //"restart" => launch_proces::restart(command, conf),
             //"reload" => launch_proces::reload(command, conf),
             //"exit" => launch_proces::exit(command, conf),
-            &_ => (),
+            &_ => "".to_string(),
         }
     }
-
-    pub fn proc_list_mut(&mut self) -> &mut ProcessList {
-        &mut self.proc_list
+    pub fn receive_cmd(&mut self) -> (String, UnixStream) {
+        let mut message = String::new();
+        let mut stream: UnixStream;
+        (stream, _) = self.listener.accept().expect("fail accept");
+        stream.read_to_string(&mut message).expect("failed to read stream");
+        (message, stream)
     }
+    pub fn send_response(&mut self, response: String, stream: &mut UnixStream) -> () {
+        stream.write(response.as_bytes()).expect("failed to write");
+    }
+
 }
 
 
