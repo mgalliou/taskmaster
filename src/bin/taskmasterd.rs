@@ -1,11 +1,8 @@
 extern crate yaml_rust;
-
 use std::collections::HashMap;
-use std::os::unix::net::{UnixListener, UnixStream};
-
-use taskmaster::common::comm::read_message;
-use taskmaster::config::{self, Config};
-use taskmaster::daemon::{ProcessList, start, Daemon};
+use std::os::unix::net::UnixListener;
+use taskmaster::config;
+use taskmaster::daemon::Daemon;
 
 fn main() {
     let path = "taskmaster.socket";
@@ -19,12 +16,11 @@ fn main() {
         proc_list: HashMap::new(),
     };
 
-    let mut line: String;
     loop {
         let (line, mut stream) = daemon.receive_cmd();
         println!("daemon {}", line);
         let response = daemon.exec_command(line.to_string());
         println!("reponse: {}", response);
-        daemon.send_response( response, &mut stream);
+        daemon.send_response(response, &mut stream);
     }
 }

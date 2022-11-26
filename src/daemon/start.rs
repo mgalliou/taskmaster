@@ -1,11 +1,10 @@
+extern crate libc;
+use crate::config::{Config, ProgramConfig};
 use std::ffi::OsStr;
 use std::io;
 use std::process::{Child, Command, Stdio};
 use std::time::Instant;
-use crate::config::{Config, ProgramConfig};
-
-use super::{CommandResult, ProcessList, ProcessInfo, ProcessStatus};
-extern crate libc;
+use super::{ProcessList, ProcessInfo, ProcessStatus};
 
 fn exec_cmd<I, S>(cmd_name: &str, args: I, prog_conf: &ProgramConfig) -> io::Result<Child> 
 where 

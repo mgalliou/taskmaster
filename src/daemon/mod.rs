@@ -64,15 +64,3 @@ impl Daemon {
     }
 
 }
-
-
-pub struct CommandResult {
-    ok: bool,
-    command: String,
-    args: Vec<String>,
-    message: String
-}
-
-impl CommandResult {
-    pub fn new(ok: bool, command: String, args: Vec<String>, message: String) -> Self { Self { ok, command, args, message } }
-}
