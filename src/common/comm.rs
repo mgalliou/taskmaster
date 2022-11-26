@@ -8,7 +8,7 @@ pub fn send_message(line: String) -> Result<()> {
     stream.write(line.as_bytes())?;
     stream.shutdown(std::net::Shutdown::Write)?;
     stream.read_to_string(&mut response).expect("failed to read stream");
-    println!("ctl response: {}", response);
+    print!("{}", response);
     Ok(())
 }
 

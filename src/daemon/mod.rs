@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::{Display, self};
 use std::io::{Read, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::process::Child;
@@ -23,11 +24,37 @@ pub enum ProcessStatus {
     Fatal,
 }
 
+impl Display for ProcessStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ProcessStatus::Starting => write!(f, "STARTING"),
+            ProcessStatus::Running => write!(f, "RUNING"),
+            ProcessStatus::Stopped => write!(f, "STOPPED"),
+            ProcessStatus::Exited => write!(f, "EXITED"),
+            ProcessStatus::Backoff => write!(f, "BACKOFF"),
+            ProcessStatus::Fatal => write!(f, "FATAL"),
+        }
+    }
+}
+
 pub struct ProcessInfo {
     pub conf: ProgramConfig,
     pub child: Child,
     pub status: ProcessStatus,
     pub start_time: Instant,
+}
+
+impl ProcessInfo {
+    fn status_str(&self) -> String {
+        //TODO: add padding to improve readbility
+        format!("{} {} pid {}, {}s\n",
+                self.conf.name,
+                self.status,
+                self.child.id(),
+                //TODO: improve timestamp: HH:mm:ss
+                self.start_time.elapsed().as_secs().to_string()
+               )
+    }
 }
 
 pub type ProcessList = HashMap<String, ProcessInfo>;

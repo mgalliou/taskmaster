@@ -27,6 +27,7 @@ impl FromStr for RestartPolicy {
 
 #[derive(Debug, Clone)]
 pub struct ProgramConfig {
+    pub name: String,
     pub cmd: String,
     pub numprocs: i64,
     pub umask: u32,
@@ -152,9 +153,11 @@ fn get_prog_conf(yaml: &Yaml) -> Config {
         let base_name = get_name(e);
         let numprocs = get_num_field(e, "numprocs");
         for i in 0..numprocs {
+            let name = gen_name(numprocs, &base_name, i);
             programs.insert(
-                gen_name(numprocs, &base_name, i),
+                name.clone(),
                 ProgramConfig {
+                    name: name.clone(),
                     cmd: get_str_field(e, "cmd"),
                     numprocs: get_num_field(e, "numprocs"),
                     umask: get_umask_field(e, "umask"),

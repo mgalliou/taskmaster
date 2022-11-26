@@ -40,9 +40,9 @@ fn start_program(name: &str, prog_conf: &ProgramConfig, proc_list: &mut ProcessL
 
         };
         (*proc_list).entry(name.to_string()).or_insert(proc_info);
-        format!("{}: ok", name)
+        format!("{}: started\n", name)
     }else {
-        format!("{}: not ok", name)
+        format!("{}: not started\n", name)
     }
 }
 
