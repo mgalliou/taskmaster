@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::process::Stdio;
-use yaml_rust::{Yaml, YamlLoader};
+use yaml_rust::{Yaml, YamlLoader, ScanError};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RestartPolicy {
@@ -143,15 +143,15 @@ fn gen_name(numprocs: i64, base_name: &String, i: i64) -> String {
     }
 }
 
-fn get_prog_conf(yaml: &Yaml) -> HashMap<String, ProgramConfig> {
-    let mut prog_conf: HashMap<String, ProgramConfig> = HashMap::new();
-    let programs = yaml["programs"].as_hash().expect("no program field found");
+fn get_prog_conf(yaml: &Yaml) -> Config {
+    let mut programs: HashMap<String, ProgramConfig> = HashMap::new();
+    let progs_yaml = yaml["programs"].as_hash().expect("no program field found");
 
-    for e in programs.into_iter() {
+    for e in progs_yaml.into_iter() {
         let base_name = get_name(e);
         let numprocs = get_num_field(e, "numprocs");
         for i in 0..numprocs {
-            prog_conf.insert(
+            programs.insert(
                 gen_name(numprocs, &base_name, i),
                 ProgramConfig {
                     cmd: get_str_field(e, "cmd"),
@@ -171,25 +171,28 @@ fn get_prog_conf(yaml: &Yaml) -> HashMap<String, ProgramConfig> {
                 });
         }
     }
-    return prog_conf;
+    Config { 
+        programs,
+    }
 }
 
-pub fn from_str(str: String) -> Config {
-    let yaml = match YamlLoader::load_from_str(&str) {
-        Ok(yaml) => yaml,
-        Err(error) => panic!("Problem converting string to yaml object: {:?}", error),
-    };
-    return Config {
-        programs: get_prog_conf(&yaml[0]),
-    };
+pub fn from_str(str: String) -> Result<Config, ScanError> {
+    match YamlLoader::load_from_str(&str) {
+        Ok(yaml) => Ok(get_prog_conf(&yaml[0])),
+        Err(e) => Err(e),
+    }
 }
 
 pub fn from_file(path: String) -> Config {
+    //TODO:should return Result
     let yaml_str = match fs::read_to_string(path) {
         Ok(f) => f,
-        Err(error) => panic!("Problem reading the file: {:?}", error),
+        Err(e) => panic!("Failed to read config file: {:?}", e),
     };
-    from_str(yaml_str)
+    match from_str(yaml_str) {
+        Ok(c) => c,
+        Err(e) => panic!("Failed to parse yaml: {:?}", e),
+    }
 }
 
 #[cfg(test)]
