@@ -67,11 +67,15 @@ pub struct Daemon {
 
 impl Daemon {
     pub fn exec_command(&mut self, line: String) -> String {
-        let mut line_split: Vec<&str> = line.split_whitespace().collect::<Vec<&str>>();
-        let cmd = line_split.remove(0);
+        let mut argv: Vec<&str> = line.split_whitespace().collect::<Vec<&str>>();
+        //TODO: find a better way to do this
+        let mut cmd = "";
+        if !argv.is_empty() {
+            cmd = argv.remove(0);
+        }
         match cmd {
-            "start" => start::start(line_split, &self.conf, &mut self.proc_list),
-            "status" => status::status(line_split, &self),
+            "start" => start::start(argv, &self.conf, &mut self.proc_list),
+            "status" => status::status(argv, &self),
             //"stop" => launch_proces::stop(command, conf),
             //"restart" => launch_proces::restart(command, conf),
             //"reload" => launch_proces::reload(command, conf),
