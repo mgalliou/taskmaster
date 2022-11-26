@@ -15,12 +15,5 @@ fn main() {
         listener: UnixListener::bind(path).expect("failed to open stream"),
         proc_list: HashMap::new(),
     };
-
-    loop {
-        let (line, mut stream) = daemon.receive_cmd();
-        println!("daemon {}", line);
-        let response = daemon.exec_command(line.to_string());
-        println!("reponse: {}", response);
-        daemon.send_response(response, &mut stream);
-    }
+    daemon.run();
 }

@@ -66,7 +66,16 @@ pub struct Daemon {
 }
 
 impl Daemon {
-    pub fn exec_command(&mut self, line: String) -> String {
+    pub fn run(&mut self) {
+        loop {
+            let (mut stream, _) = self.listener.accept().expect("fail accept");
+            let cmd = self.recv_cmd(&mut stream);
+            let response = self.run_cmd(cmd.to_string());
+            self.send_resp(response, &mut stream);
+        }
+    }
+
+    pub fn run_cmd(&mut self, line: String) -> String {
         let mut argv: Vec<&str> = line.split_whitespace().collect::<Vec<&str>>();
         //TODO: find a better way to do this
         let mut cmd = "";
@@ -83,15 +92,16 @@ impl Daemon {
             _ => "".to_string(),
         }
     }
-    pub fn receive_cmd(&mut self) -> (String, UnixStream) {
-        let mut message = String::new();
-        let mut stream: UnixStream;
-        (stream, _) = self.listener.accept().expect("fail accept");
-        stream.read_to_string(&mut message).expect("failed to read stream");
-        (message, stream)
-    }
-    pub fn send_response(&mut self, response: String, stream: &mut UnixStream) -> () {
-        stream.write(response.as_bytes()).expect("failed to write");
+
+    pub fn recv_cmd(&mut self, mut stream: &UnixStream) -> String {
+        let mut cmd = String::new();
+        stream.read_to_string(&mut cmd).expect("failed to read stream");
+        println!("daemon: received command: {}", cmd);
+        cmd
     }
 
+    pub fn send_resp(&mut self, response: String, mut stream: &UnixStream) -> () {
+        stream.write(response.as_bytes()).expect("failed to write");
+        println!("daemon: sending response: {}", response);
+    }
 }
