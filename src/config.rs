@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::process::Stdio;
+use std::str::FromStr;
 use yaml_rust::{Yaml, YamlLoader, ScanError};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -10,16 +11,16 @@ pub enum RestartPolicy {
     Unexpected,
 }
 
-impl RestartPolicy {
-    fn from_str(s: &str) -> RestartPolicy {
+impl FromStr for RestartPolicy {
+    //TODO: Use a better error type
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<RestartPolicy, Self::Err> {
         match s {
-            "always" => RestartPolicy::Always,
-            "never" => RestartPolicy::Never,
-            "unexpected" => RestartPolicy::Unexpected,
-            &_ => panic!(
-                "RestartPolicy is not one of `always`, `never` or `unexpected`: {}",
-                s
-            ),
+            "always" => Ok(RestartPolicy::Always),
+            "never" => Ok(RestartPolicy::Never),
+            "unexpected" => Ok(RestartPolicy::Unexpected),
+            _ => Err(()),
         }
     }
 }
@@ -69,7 +70,7 @@ pub struct Config {
 
 fn get_enum_field(prog: (&Yaml, &Yaml), field: &str) -> RestartPolicy {
     match prog.1[field].as_str() {
-        Some(s) => RestartPolicy::from_str(s),
+        Some(s) => RestartPolicy::from_str(s).unwrap(),
         None => panic!("field not found or invalid: {}", field),
     }
 }
