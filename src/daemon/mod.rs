@@ -1,18 +1,18 @@
 use std::collections::HashMap;
-use std::fmt::{Display, self};
+use std::fmt::{self, Display};
 use std::io::{Read, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::process::Child;
 use std::time::Instant;
 
-use crate::config::{ProgramConfig, Config};
+use crate::config::{Config, ProgramConfig};
 
+pub mod exit;
+pub mod reload;
+pub mod restart;
 pub mod start;
 pub mod status;
 pub mod stop;
-pub mod restart;
-pub mod reload;
-pub mod exit;
 
 #[derive(Debug)]
 pub enum ProcessStatus {
@@ -47,13 +47,14 @@ pub struct ProcessInfo {
 impl ProcessInfo {
     fn status_str(&self) -> String {
         //TODO: add padding to improve readbility
-        format!("{} {} pid {}, {}s\n",
-                self.conf.name,
-                self.status,
-                self.child.id(),
-                //TODO: improve timestamp: HH:mm:ss
-                self.start_time.elapsed().as_secs().to_string()
-               )
+        format!(
+            "{} {} pid {}, {}s\n",
+            self.conf.name,
+            self.status,
+            self.child.id(),
+            //TODO: improve timestamp: HH:mm:ss
+            self.start_time.elapsed().as_secs().to_string()
+        )
     }
 }
 
@@ -87,11 +88,12 @@ impl Daemon {
         let mut message = String::new();
         let mut stream: UnixStream;
         (stream, _) = self.listener.accept().expect("fail accept");
-        stream.read_to_string(&mut message).expect("failed to read stream");
+        stream
+            .read_to_string(&mut message)
+            .expect("failed to read stream");
         (message, stream)
     }
     pub fn send_response(&mut self, response: String, stream: &mut UnixStream) -> () {
         stream.write(response.as_bytes()).expect("failed to write");
     }
-
 }

@@ -1,17 +1,17 @@
 extern crate libc;
+use super::{ProcessInfo, ProcessList, ProcessStatus};
 use crate::config::{Config, ProgramConfig};
 use std::ffi::OsStr;
 use std::io;
 use std::process::{Child, Command, Stdio};
 use std::time::Instant;
-use super::{ProcessList, ProcessInfo, ProcessStatus};
 
-fn exec_cmd<I, S>(cmd_name: &str, args: I, prog_conf: &ProgramConfig) -> io::Result<Child> 
-where 
-I : IntoIterator<Item = S>,
-S : AsRef<OsStr>,
+fn exec_cmd<I, S>(cmd_name: &str, args: I, prog_conf: &ProgramConfig) -> io::Result<Child>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
 {
-    let mode = unsafe {libc::umask(prog_conf.umask)};
+    let mode = unsafe { libc::umask(prog_conf.umask) };
     let ret = Command::new(cmd_name)
         .args(args)
         .stdout(prog_conf.open_stdout())
@@ -19,7 +19,9 @@ S : AsRef<OsStr>,
         .stdin(Stdio::null())
         .current_dir(prog_conf.workingdir.clone())
         .spawn();
-    unsafe {libc::umask(mode);}
+    unsafe {
+        libc::umask(mode);
+    }
     ret
 }
 
@@ -37,16 +39,15 @@ fn start_program(name: &str, prog_conf: &ProgramConfig, proc_list: &mut ProcessL
             child: cmd.ok().unwrap(),
             status: ProcessStatus::Starting,
             start_time: Instant::now(),
-
         };
         (*proc_list).entry(name.to_string()).or_insert(proc_info);
         format!("{}: started\n", name)
-    }else {
+    } else {
         format!("{}: not started\n", name)
     }
 }
 
-pub fn start(line:Vec<&str>, conf: &Config, proc_list: &mut ProcessList) -> String {
+pub fn start(line: Vec<&str>, conf: &Config, proc_list: &mut ProcessList) -> String {
     let mut response: String = String::new();
     if line.len() > 0 {
         for program in line {

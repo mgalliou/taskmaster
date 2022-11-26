@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fs::{self, File};
 use std::process::Stdio;
 use std::str::FromStr;
-use yaml_rust::{Yaml, YamlLoader, ScanError};
+use yaml_rust::{ScanError, Yaml, YamlLoader};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RestartPolicy {
@@ -172,12 +172,11 @@ fn get_prog_conf(yaml: &Yaml) -> Config {
                     stdout: get_str_field(e, "stdout"),
                     stderr: get_str_field(e, "stderr"),
                     env: get_hash_str_field(e, "env"),
-                });
+                },
+            );
         }
     }
-    Config { 
-        programs,
-    }
+    Config { programs }
 }
 
 pub fn from_str(str: String) -> Result<Config, ScanError> {
