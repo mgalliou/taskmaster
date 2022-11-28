@@ -49,8 +49,11 @@ impl ProgramConfig {
         if self.stdout.is_empty() {
             Stdio::null()
         } else {
-            //TODO: handle error correctly
-            Stdio::from(File::create(&self.stdout).unwrap())
+            match File::create(&self.stdout) {
+                Ok(f) => Stdio::from(f),
+                //TODO: log file opening failure
+                Err(_) => Stdio::null()
+            }
         }
     }
 
@@ -58,8 +61,11 @@ impl ProgramConfig {
         if self.stderr.is_empty() {
             Stdio::null()
         } else {
-            //TODO: handle error correctly
-            Stdio::from(File::create(&self.stderr).unwrap())
+            match File::create(&self.stderr) {
+                Ok(f) => Stdio::from(f),
+                //TODO: log file opening failure
+                Err(_) => Stdio::null()
+            }
         }
     }
 }
