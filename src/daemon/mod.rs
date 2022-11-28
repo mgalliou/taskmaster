@@ -39,9 +39,10 @@ impl Display for ProcessStatus {
 
 pub struct ProcessInfo {
     pub conf: ProgramConfig,
-    pub child: Child,
+    pub child: Option<Child>,
     pub status: ProcessStatus,
     pub start_time: Instant,
+    pub start_nb: u32,
 }
 
 impl ProcessInfo {
@@ -58,7 +59,11 @@ impl ProcessInfo {
     fn pid_str(&self) -> String {
         match self.status {
             ProcessStatus::Starting => format!(""),
-            ProcessStatus::Running => format!("pid {:8}, {}", self.child.id(), self.uptime_str()),
+            ProcessStatus::Running => format!("pid {:8}, {}", match &self.child {
+                Some(c) => c.id(),
+                None => 0
+            }
+            , self.uptime_str()),
             //TODO: print exit time when available
             ProcessStatus::Stopped => format!("{:12}", "Not started"),
             ProcessStatus::Exited => format!("{}", self.exittime_str()),
@@ -87,7 +92,21 @@ pub struct Daemon {
 }
 
 impl Daemon {
+    pub fn gen_proc_list(&mut self) {
+        for (name, prog_conf) in &self.conf.programs {
+            let proc_info: ProcessInfo = ProcessInfo {
+                conf: prog_conf.clone(),
+                child: None,
+                status: ProcessStatus::Stopped,
+                start_time: Instant::now(),
+                start_nb: 0,
+            };
+            self.proc_list.entry(name.to_string()).or_insert(proc_info);
+        }
+    }
+
     pub fn run(&mut self) {
+        self.gen_proc_list();
         loop {
             let (mut stream, _) = self.listener.accept().expect("fail accept");
             let cmd = self.recv_cmd(&mut stream);
@@ -97,15 +116,16 @@ impl Daemon {
     }
 
     pub fn run_cmd(&mut self, line: String) -> String {
-        let mut argv: Vec<&str> = line.split_whitespace().collect::<Vec<&str>>();
+        let argv: Vec<&str> = line.split_whitespace().collect::<Vec<&str>>();
         //TODO: find a better way to do this
-        let mut cmd = "";
-        if !argv.is_empty() {
-            cmd = argv.remove(0);
-        }
+        let cmd = if !argv.is_empty() {
+            argv[0]
+        } else {
+            ""
+        };
         match cmd {
-            "start" => start::start(argv, &self.conf, &mut self.proc_list),
-            "status" => status::status(argv, &self),
+            "start" => start::start(argv[1..].to_vec(), self),
+            "status" => status::status(argv[1..].to_vec(), &self),
             //"stop" => launch_proces::stop(command, conf),
             //"restart" => launch_proces::restart(command, conf),
             //"reload" => launch_proces::reload(command, conf),

@@ -1,5 +1,5 @@
 extern crate libc;
-use super::{ProcessInfo, ProcessList, ProcessStatus};
+use super::{ProcessInfo, ProcessList, ProcessStatus, status, Daemon};
 use crate::config::{Config, ProgramConfig};
 use std::ffi::OsStr;
 use std::io;
@@ -25,37 +25,39 @@ where
     ret
 }
 
-fn start_program(name: &str, prog_conf: &ProgramConfig, proc_list: &mut ProcessList) -> String {
-    let mut argv = prog_conf.cmd.split_whitespace();
+fn start_program(name: String, proc: &mut ProcessInfo) -> String {
+    let mut argv = proc.conf.cmd.split_whitespace();
     let cmd_name = match argv.nth(0) {
         Some(n) => n,
         None => "",
     };
     let args = argv.clone().skip(1);
-    let cmd = exec_cmd(cmd_name, args, &prog_conf);
+    let cmd = exec_cmd(cmd_name, args, &proc.conf);
     if cmd.is_ok() {
-        let proc_info = ProcessInfo {
-            conf: prog_conf.clone(),
-            child: cmd.ok().unwrap(),
-            status: ProcessStatus::Starting,
-            start_time: Instant::now(),
-        };
-        (*proc_list).entry(name.to_string()).or_insert(proc_info);
+        proc.child = cmd.ok();
+        proc.status = ProcessStatus::Starting;
+        proc.start_time = Instant::now();
+        proc.start_nb += 1;
         format!("{}: started\n", name)
     } else {
+        proc.status = ProcessStatus::Stopped;
+        proc.start_time = Instant::now();
         format!("{}: not started\n", name)
     }
 }
 
-pub fn start(line: Vec<&str>, conf: &Config, proc_list: &mut ProcessList) -> String {
+pub fn start(line: Vec<&str>, daemon: &mut Daemon) -> String {
     let mut response: String = String::new();
     if line.len() > 0 {
         for program in line {
-            response += &start_program(program, &conf.programs[program], proc_list);
+            //TODO:check get_mut return
+            if daemon.proc_list.contains_key(program) {
+                response += &start_program(program.to_string(), &mut daemon.proc_list.get_mut(program).unwrap());
+            }
         }
     } else {
-        for (program, program_config) in &conf.programs {
-            response += &start_program(program.as_str(), program_config, proc_list);
+        for (program, proc_info) in &mut daemon.proc_list {
+            response += &start_program(program.to_string(), proc_info);
         }
     }
     response
