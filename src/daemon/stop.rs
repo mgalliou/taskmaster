@@ -1,14 +1,14 @@
+use nix::{sys::signal, unistd::Pid};
+
 use super::{Daemon, ProcessInfo, ProcessStatus};
 
+#[allow(unused_must_use)]
 fn stop_program(name: String, proc: &mut ProcessInfo) -> String {
     match proc.child.as_mut() {
-        //TODO: should send stopsignal first, wait for stoptime then kill
-        Some(c) => match c.kill() {
-            Ok(()) => {
-                proc.status = ProcessStatus::Stopped;
-                format!("{}: stopped\n", name)
-            }
-            Err(_) => format!("{}: failed to stop process\n", name),
+        Some(c) => {
+            signal::kill(Pid::from_raw(c.id() as i32), proc.conf.stopsignal);
+            proc.status = ProcessStatus::Stopping;
+            format!("{}: stopped\n", name)
         }
         None => format!("{}: not running\n", name),
     }

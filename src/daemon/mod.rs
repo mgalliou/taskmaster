@@ -18,6 +18,7 @@ pub mod stop;
 pub enum ProcessStatus {
     Starting,
     Running,
+    Stopping,
     Stopped,
     Exited,
     Backoff,
@@ -29,6 +30,7 @@ impl Display for ProcessStatus {
         match self {
             ProcessStatus::Starting => write!(f, "STARTING"),
             ProcessStatus::Running => write!(f, "RUNING"),
+            ProcessStatus::Stopping => write!(f, "STOPPING"),
             ProcessStatus::Stopped => write!(f, "STOPPED"),
             ProcessStatus::Exited => write!(f, "EXITED"),
             ProcessStatus::Backoff => write!(f, "BACKOFF"),
@@ -59,7 +61,7 @@ impl ProcessInfo {
     fn pid_str(&self) -> String {
         match self.status {
             ProcessStatus::Starting => format!(""),
-            ProcessStatus::Running => format!("pid {:8}, {}", match &self.child {
+            ProcessStatus::Running | ProcessStatus::Stopping => format!("pid {:8}, {}", match &self.child {
                 Some(c) => c.id(),
                 None => 0
             }

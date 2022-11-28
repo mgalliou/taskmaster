@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fs::{self, File};
 use std::process::Stdio;
 use std::str::FromStr;
+use nix::sys::signal::Signal;
 use yaml_rust::{ScanError, Yaml, YamlLoader};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -39,7 +40,7 @@ pub struct ProgramConfig {
     pub stderr: String,
     pub startretries: i64,
     pub starttime: i64,
-    pub stopsignal: String,
+    pub stopsignal: Signal,
     pub stoptime: i64,
     pub env: HashMap<String, String>,
 }
@@ -151,6 +152,14 @@ fn gen_name(numprocs: i64, base_name: &String, i: i64) -> String {
     }
 }
 
+fn get_stop_signal(prog: (&Yaml, &Yaml)) -> Signal {
+    let ss = get_str_field(prog, "stopsignal");
+    match ("SIG".to_owned() + &ss).parse::<Signal>() {
+        Ok(s) => s,
+        Err(_) => Signal::SIGTERM,
+    }
+}
+
 fn get_prog_conf(yaml: &Yaml) -> Config {
     let mut programs: HashMap<String, ProgramConfig> = HashMap::new();
     let progs_yaml = yaml["programs"].as_hash().expect("no program field found");
@@ -173,7 +182,7 @@ fn get_prog_conf(yaml: &Yaml) -> Config {
                     exitcodes: get_num_vec_field(e, "exitcodes"),
                     startretries: get_num_field(e, "startretries"),
                     starttime: get_num_field(e, "starttime"),
-                    stopsignal: get_str_field(e, "stopsignal"),
+                    stopsignal: get_stop_signal(e),
                     stoptime: get_num_field(e, "stoptime"),
                     stdout: get_str_field(e, "stdout"),
                     stderr: get_str_field(e, "stderr"),
