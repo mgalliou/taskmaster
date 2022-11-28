@@ -14,7 +14,7 @@ pub mod start;
 pub mod status;
 pub mod stop;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ProcessStatus {
     Starting,
     Running,
@@ -126,7 +126,7 @@ impl Daemon {
         match cmd {
             "start" => start::start(argv[1..].to_vec(), self),
             "status" => status::status(argv[1..].to_vec(), &self),
-            //"stop" => launch_proces::stop(command, conf),
+            "stop" => stop::stop(argv[1..].to_vec(), self),
             //"restart" => launch_proces::restart(command, conf),
             //"reload" => launch_proces::reload(command, conf),
             "shutdown" => shutdown::shutdown(),
