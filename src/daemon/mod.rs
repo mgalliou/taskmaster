@@ -1,18 +1,18 @@
 use std::collections::HashMap;
-use std::fmt::{Display, self};
+use std::fmt::{self, Display};
 use std::io::{Read, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::process::Child;
 use std::time::Instant;
 
-use crate::config::{ProgramConfig, Config};
+use crate::config::{Config, ProgramConfig};
 
+pub mod reload;
+pub mod restart;
+pub mod shutdown;
 pub mod start;
 pub mod status;
 pub mod stop;
-pub mod restart;
-pub mod reload;
-pub mod shutdown;
 
 #[derive(Debug)]
 pub enum ProcessStatus {
@@ -47,13 +47,34 @@ pub struct ProcessInfo {
 impl ProcessInfo {
     fn status_str(&self) -> String {
         //TODO: add padding to improve readbility
-        format!("{} {} pid {}, {}s\n",
-                self.conf.name,
-                self.status,
-                self.child.id(),
-                //TODO: improve timestamp: HH:mm:ss
-                self.start_time.elapsed().as_secs().to_string()
-               )
+        format!(
+            "{:33} {:8} {}\n",
+            self.conf.name,
+            self.status,
+            self.pid_str(),
+        )
+    }
+
+    fn pid_str(&self) -> String {
+        match self.status {
+            ProcessStatus::Starting => format!(""),
+            ProcessStatus::Running => format!("pid {:8}, {}", self.child.id(), self.uptime_str()),
+            //TODO: print exit time when available
+            ProcessStatus::Stopped => format!("{:12}", "Not started"),
+            ProcessStatus::Exited => format!("{}", self.exittime_str()),
+            ProcessStatus::Backoff | ProcessStatus::Fatal => format!("Exited too quickly"),
+        }
+    }
+
+    fn uptime_str(&self) -> String {
+        let s = self.start_time.elapsed().as_secs();
+        let m = s / 60;
+        let h = s / 3600;
+        format!("uptime {:02}:{:02}:{:02}", h, m - (60 * h), s - (3600 * h))
+    }
+
+    fn exittime_str(&self) -> String {
+        todo!()
     }
 }
 
@@ -95,7 +116,9 @@ impl Daemon {
 
     pub fn recv_cmd(&mut self, mut stream: &UnixStream) -> String {
         let mut cmd = String::new();
-        stream.read_to_string(&mut cmd).expect("failed to read stream");
+        stream
+            .read_to_string(&mut cmd)
+            .expect("failed to read stream");
         println!("daemon: received command: {}", cmd);
         cmd
     }
