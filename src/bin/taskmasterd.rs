@@ -11,7 +11,7 @@ fn main() -> Result<(), ConfigError> {
         std::fs::remove_file(path).expect("could not delete previous socket at {:?}");
     }
     let mut daemon: Daemon = Daemon {
-        conf: config::from_file("cfg/good/cat.yaml".to_string())?,
+        conf: Config::from_file("cfg/good/cat.yaml")?,
         listener: UnixListener::bind(path).expect("failed to open stream"),
         proc_list: HashMap::new(),
     };
