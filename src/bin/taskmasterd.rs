@@ -1,10 +1,11 @@
 extern crate yaml_rust;
 use std::collections::HashMap;
 use std::os::unix::net::UnixListener;
-use taskmaster::config::{self, ConfigError};
+use taskmaster::config::{ConfigError, Config};
 use taskmaster::daemon::Daemon;
 
 fn main() -> Result<(), ConfigError> {
+    //TODO: get config path from argv
     let path = "taskmaster.socket";
     if std::fs::metadata(path).is_ok() {
         println!("A socket is already present. Deleting...");

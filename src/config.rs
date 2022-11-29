@@ -74,6 +74,7 @@ pub struct ProgramConfig {
 
 impl ProgramConfig {
     fn from_yaml(name: String, conf: &Yaml) -> Result<ProgramConfig, ConfigError> {
+        //TODO: add default value if field is not present (not if invalid)
         Ok(ProgramConfig {
             name,
             cmd: get_str_field(conf, "cmd")?,
@@ -167,6 +168,7 @@ impl Config {
             Ok(c) => Ok(c),
             Err(e) => Err(ConfigError::new(&format!("Failed to parse yaml: {}", e))),
         }
+
     }
 }
 
