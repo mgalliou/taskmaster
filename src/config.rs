@@ -1,9 +1,34 @@
+use core::fmt;
 use std::collections::HashMap;
+use std::error::Error;
 use std::fs::{self, File};
 use std::process::Stdio;
 use std::str::FromStr;
 use nix::sys::signal::Signal;
-use yaml_rust::{ScanError, Yaml, YamlLoader};
+use yaml_rust::{Yaml, YamlLoader};
+
+#[derive(Debug)]
+pub struct ConfigError {
+    details: String
+}
+
+impl ConfigError {
+    fn new(msg: &str) -> ConfigError {
+        ConfigError{details: msg.to_string()}
+    }
+}
+
+impl fmt::Display for ConfigError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.details)
+    }
+}
+
+impl Error for ConfigError {
+    fn description(&self) -> &str {
+        &self.details
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RestartPolicy {
@@ -46,6 +71,27 @@ pub struct ProgramConfig {
 }
 
 impl ProgramConfig {
+    fn from_yaml(name: &String, conf: &Yaml) -> Result<ProgramConfig, ConfigError> {
+        let c = ProgramConfig {
+            name: name.clone(),
+            cmd: get_str_field(conf, "cmd")?,
+            numprocs: get_num_field(conf, "numprocs")?,
+            umask: get_umask_field(conf, "umask")?,
+            workingdir: get_str_field(conf, "workingdir")?,
+            autostart: get_bool_field(conf, "autostart")?,
+            autorestart: get_enum_field(conf, "autorestart")?,
+            exitcodes: get_num_vec_field(conf, "exitcodes")?,
+            startretries: get_num_field(conf, "startretries")?,
+            starttime: get_num_field(conf, "starttime")?,
+            stopsignal: get_stop_signal(conf)?,
+            stoptime: get_num_field(conf, "stoptime")?,
+            stdout: get_str_field(conf, "stdout")?,
+            stderr: get_str_field(conf, "stderr")?,
+            env: get_hash_str_field(conf, "env")?,
+        };
+        Ok(c)
+    }
+
     pub fn open_stdout(&self) -> Stdio {
         if self.stdout.is_empty() {
             Stdio::null()
@@ -76,71 +122,72 @@ pub struct Config {
     pub programs: HashMap<String, ProgramConfig>,
 }
 
-fn get_enum_field(prog: (&Yaml, &Yaml), field: &str) -> RestartPolicy {
-    match prog.1[field].as_str() {
-        Some(s) => RestartPolicy::from_str(s).unwrap(),
-        None => panic!("field not found or invalid: {}", field),
+fn get_enum_field(prog: &Yaml, field: &str) -> Result<RestartPolicy, ConfigError> {
+    match prog[field].as_str() {
+        Some(s) => match RestartPolicy::from_str(s) {
+            Ok(rp) => Ok(rp),
+            Err(_) => Err(ConfigError::new(&format!("invalid value for field: {}", field))),
+        },
+        None => Ok(RestartPolicy::Always),
     }
 }
 
-fn get_bool_field(prog: (&Yaml, &Yaml), field: &str) -> bool {
-    match prog.1[field].as_bool() {
-        Some(s) => s,
-        None => panic!("field not found or not a boolean: {}", field),
+fn get_bool_field(prog: &Yaml, field: &str) -> Result<bool, ConfigError> {
+    match prog[field].as_bool() {
+        Some(s) => Ok(s),
+        None => Err(ConfigError::new(&format!("field not found or not a boolean: {}", field)))
     }
 }
 
-fn get_num_vec_field(prog: (&Yaml, &Yaml), field: &str) -> Vec<i64> {
-    let f = match prog.1[field].clone().into_vec() {
-        Some(v) => v,
-        None => panic!("field not found: {}", field),
-    };
-    //TODO: better error handling if a field is not a number
+fn get_umask_field(prog: &Yaml, field: &str) -> Result<u32, ConfigError> {
+    match prog[field].as_i64() {
+        Some(s) => Ok(u32::from_str_radix(s.to_string().as_str(), 8).unwrap()),
+        None => Err(ConfigError::new(&format!("field not found or not a number: {}", field)))
+    }
+}
+
+fn get_num_field(prog: &Yaml, field: &str) -> Result<i64, ConfigError> {
+    match prog[field].as_i64() {
+        Some(f) => Ok(f),
+        None => Err(ConfigError::new(&format!("field not found or not a number: {}", field)))
+    }
+}
+
+fn get_num_vec_field(prog: &Yaml, field: &str) -> Result<Vec<i64>, ConfigError> {
+    let f = match prog[field].clone().into_vec() {
+        Some(v) => Ok(v),
+        None => Err(ConfigError::new(&format!("field not found: {}", field)))
+    }?;
+    f.into_iter().map(|n| match n.as_i64() {
+        Some(n) => Ok(n),
+        None => Err(ConfigError::new(&format!("invalid value for field: {}", field)))
+    }).collect()
+}
+
+fn get_hash_str_field(prog: &Yaml, field: &str) -> Result<HashMap<String, String>, ConfigError> {
+    let f = match prog[field].clone().into_hash() {
+        Some(h) => Ok(h),
+        None => Err(ConfigError::new(&format!("field not found or invalid: {}", field)))
+    }?;
     f.into_iter()
-        .map(|n| n.as_i64().expect("field not a number"))
-        .collect::<Vec<i64>>()
-}
-
-fn get_umask_field(prog: (&Yaml, &Yaml), field: &str) -> u32 {
-    match prog.1[field].as_i64() {
-        Some(s) => u32::from_str_radix(s.to_string().as_str(), 8).unwrap(),
-        None => panic!("field not found or not a number: {}", field),
-    }
-}
-
-fn get_num_field(prog: (&Yaml, &Yaml), field: &str) -> i64 {
-    match prog.1[field].as_i64() {
-        Some(s) => s,
-        None => panic!("field not found or not a number: {}", field),
-    }
-}
-
-fn get_hash_str_field(prog: (&Yaml, &Yaml), field: &str) -> HashMap<String, String> {
-    let f = match prog.1[field].clone().into_hash() {
-        Some(h) => h,
-        None => panic!("invalid or field not found: {}", field),
-    };
-    f.into_iter()
-        .map(|n| -> (String, String) {
-            (
-                n.0.into_string().expect("hashmap key should be a string"),
-                n.1.into_string().expect("hashmap value should be a string"),
-            )
+        .map(|(k, v)| {
+            let new_k = match k.into_string() {
+                Some(k) => k,
+                None => return Err(ConfigError::new(&format!("invalid key in field: {}", field)))
+            };
+            let new_v = match v.into_string() {
+                Some(v) => v,
+                None => return Err(ConfigError::new(&format!("invalid key in field: {}", field)))
+            };
+            Ok((new_k, new_v))
         })
-        .collect::<HashMap<String, String>>()
+    .collect()
 }
 
-fn get_str_field(prog: (&Yaml, &Yaml), field: &str) -> String {
-    match prog.1[field].as_str() {
-        Some(s) => s.to_string(),
-        None => panic!("field not found or not a string: {}", field),
-    }
-}
-
-fn get_name(prog: (&Yaml, &Yaml)) -> String {
-    match prog.0.as_str() {
-        Some(s) => s.to_string(),
-        None => panic!("field is not as string"),
+fn get_str_field(prog: &Yaml, field: &str) -> Result<String, ConfigError> {
+    match prog[field].as_str() {
+        Some(s) => Ok(s.to_string()),
+        None => Err(ConfigError::new(&format!("field not found or not a string: {}", field))),
     }
 }
 
@@ -152,64 +199,47 @@ fn gen_name(numprocs: i64, base_name: &String, i: i64) -> String {
     }
 }
 
-fn get_stop_signal(prog: (&Yaml, &Yaml)) -> Signal {
-    let ss = get_str_field(prog, "stopsignal");
+fn get_stop_signal(prog: &Yaml) -> Result<Signal, ConfigError> {
+    let ss = get_str_field(prog, "stopsignal")?;
     match ("SIG".to_owned() + &ss).parse::<Signal>() {
-        Ok(s) => s,
-        Err(_) => Signal::SIGTERM,
+        Ok(s) => Ok(s),
+        Err(_) => Ok(Signal::SIGTERM),
     }
 }
 
-fn get_prog_conf(yaml: &Yaml) -> Config {
+fn get_prog_conf(yaml: &Yaml) -> Result<Config, ConfigError> {
     let mut programs: HashMap<String, ProgramConfig> = HashMap::new();
     let progs_yaml = yaml["programs"].as_hash().expect("no program field found");
 
-    for e in progs_yaml.into_iter() {
-        let base_name = get_name(e);
-        let numprocs = get_num_field(e, "numprocs");
+    for (name, conf)  in progs_yaml.into_iter() {
+        let base_name = name.as_str().unwrap();
+        let numprocs = get_num_field(conf, "numprocs")?;
         for i in 0..numprocs {
-            let name = gen_name(numprocs, &base_name, i);
-            programs.insert(
-                name.clone(),
-                ProgramConfig {
-                    name: name.clone(),
-                    cmd: get_str_field(e, "cmd"),
-                    numprocs: get_num_field(e, "numprocs"),
-                    umask: get_umask_field(e, "umask"),
-                    workingdir: get_str_field(e, "workingdir"),
-                    autostart: get_bool_field(e, "autostart"),
-                    autorestart: get_enum_field(e, "autorestart"),
-                    exitcodes: get_num_vec_field(e, "exitcodes"),
-                    startretries: get_num_field(e, "startretries"),
-                    starttime: get_num_field(e, "starttime"),
-                    stopsignal: get_stop_signal(e),
-                    stoptime: get_num_field(e, "stoptime"),
-                    stdout: get_str_field(e, "stdout"),
-                    stderr: get_str_field(e, "stderr"),
-                    env: get_hash_str_field(e, "env"),
-                },
-            );
+            let name = gen_name(numprocs, &base_name.to_string(), i);
+            let pc = ProgramConfig::from_yaml(&name, conf);
+            programs.insert(name, pc.unwrap());
         }
     }
-    Config { programs }
+    Ok(Config { programs })
 }
 
-pub fn from_str(str: String) -> Result<Config, ScanError> {
+
+pub fn from_str(str: String) -> Result<Config, ConfigError> {
     match YamlLoader::load_from_str(&str) {
-        Ok(yaml) => Ok(get_prog_conf(&yaml[0])),
-        Err(e) => Err(e),
+        Ok(yaml) => get_prog_conf(&yaml[0]),
+        Err(e) => Err(ConfigError::new(&format!("error scanning config file: {}", e.to_string()))),
     }
 }
 
-pub fn from_file(path: String) -> Config {
+pub fn from_file(path: String) -> Result<Config, ConfigError> {
     //TODO:should return Result
     let yaml_str = match fs::read_to_string(path) {
-        Ok(f) => f,
-        Err(e) => panic!("Failed to read config file: {:?}", e),
-    };
+        Ok(f) => Ok(f),
+        Err(e) => Err(ConfigError::new(&format!("Failed to read config file: {}", e)))
+    }?;
     match from_str(yaml_str) {
-        Ok(c) => c,
-        Err(e) => panic!("Failed to parse yaml: {:?}", e),
+        Ok(c) => Ok(c),
+        Err(e) => Err(ConfigError::new(&format!("Failed to parse yaml: {}", e)))
     }
 }
 
@@ -220,7 +250,7 @@ mod tests {
 
     #[test]
     fn it_works() {
-        let c = config::from_file("cfg/good/cat.yaml".to_string());
+        let c = config::from_file("cfg/good/cat.yaml".to_string()).unwrap();
         assert_eq!(c.programs["cat"].cmd, "/bin/cat");
         assert_eq!(c.programs["cat"].numprocs, 1);
         assert_eq!(c.programs["cat"].umask, 0o022);
@@ -233,7 +263,7 @@ mod tests {
         assert_eq!(c.programs["cat"].exitcodes, vec![0, 2]);
         assert_eq!(c.programs["cat"].startretries, 3);
         assert_eq!(c.programs["cat"].starttime, 5);
-        assert_eq!(c.programs["cat"].stopsignal, "TERM");
+        assert_eq!(c.programs["cat"].stopsignal.as_str(), "SIGTERM");
         assert_eq!(c.programs["cat"].stoptime, 10);
         assert_eq!(c.programs["cat"].stdout, "/tmp/cat.stdout");
         assert_eq!(c.programs["cat"].stderr, "/tmp/cat.stderr");
