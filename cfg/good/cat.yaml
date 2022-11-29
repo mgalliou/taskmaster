@@ -1,7 +1,7 @@
 programs:
   cat:
     cmd: "/bin/cat"
-    numprocs: 4
+    numprocs: 1
     umask: 022
     workingdir: "/"
     autostart: true

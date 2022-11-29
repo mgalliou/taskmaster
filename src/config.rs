@@ -71,9 +71,9 @@ pub struct ProgramConfig {
 }
 
 impl ProgramConfig {
-    fn from_yaml(name: &String, conf: &Yaml) -> Result<ProgramConfig, ConfigError> {
+    fn from_yaml(name: String, conf: &Yaml) -> Result<ProgramConfig, ConfigError> {
         let c = ProgramConfig {
-            name: name.clone(),
+            name,
             cmd: get_str_field(conf, "cmd")?,
             numprocs: get_num_field(conf, "numprocs")?,
             umask: get_umask_field(conf, "umask")?,
@@ -141,7 +141,10 @@ fn get_bool_field(prog: &Yaml, field: &str) -> Result<bool, ConfigError> {
 
 fn get_umask_field(prog: &Yaml, field: &str) -> Result<u32, ConfigError> {
     match prog[field].as_i64() {
-        Some(s) => Ok(u32::from_str_radix(s.to_string().as_str(), 8).unwrap()),
+        Some(s) => match u32::from_str_radix(&s.to_string(), 8) {
+            Ok(n) => Ok(n),
+            Err(_) => Err(ConfigError::new(&format!("failed to convert umask: {}", field)))
+        },
         None => Err(ConfigError::new(&format!("field not found or not a number: {}", field)))
     }
 }
@@ -191,11 +194,11 @@ fn get_str_field(prog: &Yaml, field: &str) -> Result<String, ConfigError> {
     }
 }
 
-fn gen_name(numprocs: i64, base_name: &String, i: i64) -> String {
+fn gen_name(numprocs: i64, base_name: &str, i: i64) -> String {
     if numprocs == 1 {
-        base_name.clone()
+        base_name.to_string()
     } else {
-        base_name.clone() + &i.to_string()
+        base_name.to_string() + &i.to_string()
     }
 }
 
@@ -209,15 +212,20 @@ fn get_stop_signal(prog: &Yaml) -> Result<Signal, ConfigError> {
 
 fn get_prog_conf(yaml: &Yaml) -> Result<Config, ConfigError> {
     let mut programs: HashMap<String, ProgramConfig> = HashMap::new();
-    let progs_yaml = yaml["programs"].as_hash().expect("no program field found");
-
-    for (name, conf)  in progs_yaml.into_iter() {
-        let base_name = name.as_str().unwrap();
-        let numprocs = get_num_field(conf, "numprocs")?;
+    let progs_yaml = match yaml["programs"].as_hash() {
+        Some(y) => Ok(y),
+        None => Err(ConfigError::new("no program field found"))
+    }?;
+    for (yname, yconf) in progs_yaml.into_iter() {
+        let numprocs = get_num_field(yconf, "numprocs")?;
+        let base_name = match yname.as_str() {
+            Some(n) => Ok(n),
+            None => Err(ConfigError::new("program name is not a string"))
+        }?;
         for i in 0..numprocs {
-            let name = gen_name(numprocs, &base_name.to_string(), i);
-            let pc = ProgramConfig::from_yaml(&name, conf);
-            programs.insert(name, pc.unwrap());
+            let name = gen_name(numprocs, base_name, i);
+            let conf = ProgramConfig::from_yaml(name.clone(), yconf)?;
+            programs.insert(name.clone(), conf);
         }
     }
     Ok(Config { programs })
