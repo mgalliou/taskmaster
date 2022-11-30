@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt::{self, Display};
 use std::io::{Read, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
-use std::process::Child;
+use std::process::{Child, ExitStatus};
 use std::time::Instant;
 
 use crate::config::{Config, ProgramConfig};
@@ -23,6 +23,7 @@ pub enum ProcessStatus {
     Exited,
     Backoff,
     Fatal,
+    Unknown
 }
 
 impl Display for ProcessStatus {
@@ -35,16 +36,21 @@ impl Display for ProcessStatus {
             ProcessStatus::Exited => write!(f, "EXITED"),
             ProcessStatus::Backoff => write!(f, "BACKOFF"),
             ProcessStatus::Fatal => write!(f, "FATAL"),
+            ProcessStatus::Unknown => write!(f, "Unknown"),
         }
     }
 }
 
+//TODO: change start and exit time to Option<Instant>
 pub struct ProcessInfo {
     pub conf: ProgramConfig,
     pub child: Option<Child>,
     pub status: ProcessStatus,
-    pub start_time: Instant,
-    pub start_nb: u32,
+    pub start_time: Option<Instant>,
+    pub exit_time: Option<Instant>,
+    pub stop_time: Option<Instant>,
+    pub start_nb: i64,
+    pub exit_status: Option<ExitStatus>,
 }
 
 impl ProcessInfo {
@@ -70,14 +76,20 @@ impl ProcessInfo {
             ProcessStatus::Stopped => format!("{:12}", "Not started"),
             ProcessStatus::Exited => format!("{}", self.exittime_str()),
             ProcessStatus::Backoff | ProcessStatus::Fatal => format!("Exited too quickly"),
+            ProcessStatus::Unknown => todo!(),
         }
     }
 
     fn uptime_str(&self) -> String {
-        let s = self.start_time.elapsed().as_secs();
-        let m = s / 60;
-        let h = s / 3600;
-        format!("uptime {:02}:{:02}:{:02}", h, m - (60 * h), s - (3600 * h))
+        match self.start_time {
+            Some(time) => {
+                let s = time.elapsed().as_secs();
+                let m = s / 60;
+                let h = s / 3600;
+                format!("uptime {:02}:{:02}:{:02}", h, m - (60 * h), s - (3600 * h))
+            },
+            None => format!("program not started")
+        }
     }
 
     fn exittime_str(&self) -> String {
@@ -100,13 +112,17 @@ impl Daemon {
                 conf: prog_conf.clone(),
                 child: None,
                 status: ProcessStatus::Stopped,
-                start_time: Instant::now(),
+                start_time: None,
                 start_nb: 0,
+                exit_time: None,
+                stop_time: None,
+                exit_status: None,
             };
             self.proc_list.entry(name.to_string()).or_insert(proc_info);
         }
     }
 
+    //TODO: start process that needs to get started on boot
     pub fn run(&mut self) {
         self.gen_proc_list();
         loop {

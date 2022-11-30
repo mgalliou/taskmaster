@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use nix::{sys::signal, unistd::Pid};
 
 use super::{Daemon, ProcessInfo, ProcessStatus};
@@ -8,6 +10,7 @@ fn stop_program(name: String, proc: &mut ProcessInfo) -> String {
         Some(c) => {
             signal::kill(Pid::from_raw(c.id() as i32), proc.conf.stopsignal);
             proc.status = ProcessStatus::Stopping;
+            proc.stop_time = Some(Instant::now());
             format!("{}: stopped\n", name)
         }
         None => format!("{}: not running\n", name),

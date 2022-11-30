@@ -36,16 +36,16 @@ fn start_program(name: String, proc: &mut ProcessInfo) -> String {
     if cmd.is_ok() {
         proc.child = cmd.ok();
         proc.status = ProcessStatus::Starting;
-        proc.start_time = Instant::now();
+        proc.start_time = Some(Instant::now());
         proc.start_nb += 1;
         format!("{}: started\n", name)
     } else {
         proc.status = ProcessStatus::Stopped;
-        proc.start_time = Instant::now();
         format!("{}: not started\n", name)
     }
 }
 
+//TODO: check program status before starting it
 pub fn start(line: Vec<&str>, daemon: &mut Daemon) -> String {
     let mut response: String = String::new();
     if line.len() > 0 {
