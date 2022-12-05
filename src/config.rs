@@ -93,7 +93,7 @@ impl ProgramConfig {
             //TODO: define default behavior no stdout or stderr
             stdout: get_str_field(conf, "stdout", "")?,
             stderr: get_str_field(conf, "stderr", "")?,
-            env: get_hash_str_field(conf, "env")?,
+            env: get_hash_str_field(conf, "env", HashMap::new())?,
         })
     }
 
@@ -238,13 +238,14 @@ fn get_num_vec_field(prog: &Yaml, field: &str) -> Result<Vec<i64>, ConfigError> 
         .collect()
 }
 
-fn get_hash_str_field(prog: &Yaml, field: &str) -> Result<HashMap<String, String>, ConfigError> {
-    let f = match prog[field].clone().into_hash() {
-        Some(h) => Ok(h),
-        None => Err(ConfigError::new(&format!(
-            "field not found or invalid: {}",
-            field
-        ))),
+fn get_hash_str_field(prog: &Yaml, field: &str, default: HashMap<String, String>) -> Result<HashMap<String, String>, ConfigError> {
+    let f = match &prog[field] {
+        Yaml::Hash(h) => Ok(h.clone()),
+        Yaml::BadValue => return Ok(default),
+        _ => return Err(ConfigError::new(&format!(
+                    "invalid value for field: {}",
+                    field
+                    ))),
     }?;
     f.into_iter()
         .map(|(k, v)| {
@@ -252,23 +253,23 @@ fn get_hash_str_field(prog: &Yaml, field: &str) -> Result<HashMap<String, String
                 Some(k) => k,
                 None => {
                     return Err(ConfigError::new(&format!(
-                        "invalid key in field: {}",
-                        field
-                    )))
+                                "invalid key in field: {}",
+                                field
+                                )))
                 }
             };
             let new_v = match v.into_string() {
                 Some(v) => v,
                 None => {
                     return Err(ConfigError::new(&format!(
-                        "invalid key in field: {}",
-                        field
-                    )))
+                                "invalid key in field: {}",
+                                field
+                                )))
                 }
             };
             Ok((new_k, new_v))
         })
-        .collect()
+    .collect()
 }
 
 fn get_str_field(prog: &Yaml, field: &str, default: &str) -> Result<String, ConfigError> {
