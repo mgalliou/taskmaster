@@ -85,7 +85,7 @@ impl ProgramConfig {
             workingdir: get_str_field(conf, "workingdir", ".")?,
             autostart: get_bool_field(conf, "autostart", true)?,
             autorestart: get_autorestart(conf, "autorestart")?,
-            exitcodes: get_num_vec_field(conf, "exitcodes")?,
+            exitcodes: get_num_vec_field(conf, "exitcodes", Vec::from([0]))?,
             startretries: get_num_field(conf, "startretries", 3)?,
             starttime: get_num_field(conf, "starttime", 10)?,
             stopsignal: get_stop_signal(conf)?,
@@ -222,18 +222,19 @@ fn get_num_field(prog: &Yaml, field: &str, default: i64) -> Result<i64, ConfigEr
     }
 }
 
-fn get_num_vec_field(prog: &Yaml, field: &str) -> Result<Vec<i64>, ConfigError> {
-    let f = match prog[field].clone().into_vec() {
-        Some(v) => Ok(v),
-        None => Err(ConfigError::new(&format!("field not found: {}", field))),
+fn get_num_vec_field(prog: &Yaml, field: &str, default: Vec<i64>) -> Result<Vec<i64>, ConfigError> {
+    let f = match &prog[field] {
+        Yaml::BadValue => return Ok(default),
+        Yaml::Array(v) => Ok(v),
+        _ => Err(ConfigError::new(&format!("field not found: {}", field))),
     }?;
     f.into_iter()
         .map(|n| match n.as_i64() {
             Some(n) => Ok(n),
             None => Err(ConfigError::new(&format!(
-                "invalid value for field: {}",
-                field
-            ))),
+                        "invalid value for field: {}",
+                        field
+                        ))),
         })
         .collect()
 }
