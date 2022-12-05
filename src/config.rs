@@ -77,19 +77,22 @@ impl ProgramConfig {
         //TODO: add default value if field is not present (not if invalid)
         Ok(ProgramConfig {
             name,
-            cmd: get_str_field(conf, "cmd")?,
-            numprocs: get_num_field(conf, "numprocs")?,
+            //TODO: return error with missing cmd field
+            cmd: get_str_field(conf, "cmd", "")?,
+            numprocs: get_num_field(conf, "numprocs", 1)?,
             umask: get_umask(conf, "umask")?,
-            workingdir: get_str_field(conf, "workingdir")?,
-            autostart: get_bool_field(conf, "autostart")?,
+            //TODO: test behavior with no workingdir
+            workingdir: get_str_field(conf, "workingdir", ".")?,
+            autostart: get_bool_field(conf, "autostart", true)?,
             autorestart: get_autorestart(conf, "autorestart")?,
             exitcodes: get_num_vec_field(conf, "exitcodes")?,
-            startretries: get_num_field(conf, "startretries")?,
-            starttime: get_num_field(conf, "starttime")?,
+            startretries: get_num_field(conf, "startretries", 3)?,
+            starttime: get_num_field(conf, "starttime", 10)?,
             stopsignal: get_stop_signal(conf)?,
-            stoptime: get_num_field(conf, "stoptime")?,
-            stdout: get_str_field(conf, "stdout")?,
-            stderr: get_str_field(conf, "stderr")?,
+            stoptime: get_num_field(conf, "stoptime", 10)?,
+            //TODO: define default behavior no stdout or stderr
+            stdout: get_str_field(conf, "stdout", "")?,
+            stderr: get_str_field(conf, "stderr", "")?,
             env: get_hash_str_field(conf, "env")?,
         })
     }
@@ -132,7 +135,7 @@ impl Config {
             None => Err(ConfigError::new("no program field found")),
         }?;
         for (yname, yconf) in yprog.into_iter() {
-            let numprocs = get_num_field(yconf, "numprocs")?;
+            let numprocs = get_num_field(yconf, "numprocs", 1)?;
             let base_name = match yname.as_str() {
                 Some(n) => Ok(n),
                 None => Err(ConfigError::new("program name is not a string")),
@@ -173,25 +176,25 @@ impl Config {
 }
 
 fn get_autorestart(prog: &Yaml, field: &str) -> Result<RestartPolicy, ConfigError> {
-    match prog[field].as_str() {
-        Some(s) => match RestartPolicy::from_str(s) {
-            Ok(rp) => Ok(rp),
-            Err(_) => Err(ConfigError::new(&format!(
-                "invalid value for field: {}",
-                field
-            ))),
-        },
-        None => Ok(RestartPolicy::Always),
+    let f = &prog[field];
+    if f.is_badvalue() {
+        return Ok(RestartPolicy::Unexpected);
     }
+    let s = f.as_str();
+    if s.is_some() {
+        match RestartPolicy::from_str(s.unwrap()) {
+            Ok(rp) => return Ok(rp),
+            Err(_) => {},
+        }
+    }
+    Err(ConfigError::new(&format!("invalid value for field: {}", field)))
 }
 
-fn get_bool_field(prog: &Yaml, field: &str) -> Result<bool, ConfigError> {
-    match prog[field].as_bool() {
-        Some(s) => Ok(s),
-        None => Err(ConfigError::new(&format!(
-            "field not found or not a boolean: {}",
-            field
-        ))),
+fn get_bool_field(prog: &Yaml, field: &str, default: bool) -> Result<bool, ConfigError> {
+    match prog[field] {
+        Yaml::Boolean(b) => Ok(b),
+        Yaml::BadValue => Ok(default),
+        _ => Err(ConfigError::new(&format!("field is not a boolean: {}", field))),
     }
 }
 
@@ -211,13 +214,11 @@ fn get_umask(prog: &Yaml, field: &str) -> Result<u32, ConfigError> {
     }
 }
 
-fn get_num_field(prog: &Yaml, field: &str) -> Result<i64, ConfigError> {
-    match prog[field].as_i64() {
-        Some(f) => Ok(f),
-        None => Err(ConfigError::new(&format!(
-            "field not found or not a number: {}",
-            field
-        ))),
+fn get_num_field(prog: &Yaml, field: &str, default: i64) -> Result<i64, ConfigError> {
+    match prog[field] {
+        Yaml::Integer(n) => Ok(n),
+        Yaml::BadValue => Ok(default),
+        _ => Err(ConfigError::new(&format!("invalid value for field: {}", field)))
     }
 }
 
@@ -270,13 +271,11 @@ fn get_hash_str_field(prog: &Yaml, field: &str) -> Result<HashMap<String, String
         .collect()
 }
 
-fn get_str_field(prog: &Yaml, field: &str) -> Result<String, ConfigError> {
-    match prog[field].as_str() {
-        Some(s) => Ok(s.to_string()),
-        None => Err(ConfigError::new(&format!(
-            "field not found or not a string: {}",
-            field
-        ))),
+fn get_str_field(prog: &Yaml, field: &str, default: &str) -> Result<String, ConfigError> {
+    match &prog[field] {
+        Yaml::BadValue => Ok(default.to_string()),
+        Yaml::String(s) => Ok(s.to_string()),
+        _ => Err(ConfigError::new(&format!("field is not a string: {}", field))),
     }
 }
 
@@ -289,7 +288,7 @@ fn gen_name(numprocs: i64, base_name: &str, i: i64) -> String {
 }
 
 fn get_stop_signal(prog: &Yaml) -> Result<Signal, ConfigError> {
-    let ss = get_str_field(prog, "stopsignal")?;
+    let ss = get_str_field(prog, "stopsignal", "TERM")?;
     match ("SIG".to_owned() + &ss).parse::<Signal>() {
         Ok(s) => Ok(s),
         Err(_) => Ok(Signal::SIGTERM),
