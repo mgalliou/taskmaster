@@ -204,8 +204,8 @@ fn get_autorestart(prog: &Yaml, field: &str) -> Result<RestartPolicy, ConfigErro
 
 fn get_bool_field(prog: &Yaml, field: &str, default: bool) -> Result<bool, ConfigError> {
     match prog[field] {
-        Yaml::Boolean(b) => Ok(b),
         Yaml::BadValue => Ok(default),
+        Yaml::Boolean(b) => Ok(b),
         _ => Err(ConfigError::new(&format!("field is not a boolean: {}", field))),
     }
 }
@@ -231,8 +231,8 @@ fn get_umask(prog: &Yaml, field: &str) -> Result<u32, ConfigError> {
 
 fn get_num_field(prog: &Yaml, field: &str, default: i64) -> Result<i64, ConfigError> {
     match prog[field] {
-        Yaml::Integer(n) => Ok(n),
         Yaml::BadValue => Ok(default),
+        Yaml::Integer(n) => Ok(n),
         _ => Err(ConfigError::new(&format!("invalid value for field: {}", field)))
     }
 }
@@ -256,8 +256,8 @@ fn get_num_vec_field(prog: &Yaml, field: &str, default: Vec<i64>) -> Result<Vec<
 
 fn get_hash_str_field(prog: &Yaml, field: &str, default: HashMap<String, String>) -> Result<HashMap<String, String>, ConfigError> {
     let f = match &prog[field] {
-        Yaml::Hash(h) => Ok(h.clone()),
         Yaml::BadValue => return Ok(default),
+        Yaml::Hash(h) => Ok(h.clone()),
         _ => return Err(ConfigError::new(&format!(
                     "invalid value for field: {}",
                     field
