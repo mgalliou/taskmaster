@@ -74,7 +74,6 @@ pub struct ProgramConfig {
 
 impl ProgramConfig {
     fn from_yaml(name: String, conf: &Yaml) -> Result<ProgramConfig, ConfigError> {
-        //TODO: add default value if field is not present (not if invalid)
         Ok(ProgramConfig {
             name,
             //TODO: return error with missing cmd field
@@ -199,6 +198,9 @@ fn get_bool_field(prog: &Yaml, field: &str, default: bool) -> Result<bool, Confi
 }
 
 fn get_umask(prog: &Yaml, field: &str) -> Result<u32, ConfigError> {
+    if prog[field].is_badvalue() {
+        return Ok(0o022)
+    };
     match prog[field].as_i64() {
         Some(s) => match u32::from_str_radix(&s.to_string(), 8) {
             Ok(n) => Ok(n),
