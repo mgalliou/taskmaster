@@ -7,6 +7,19 @@ use std::process::Stdio;
 use std::str::FromStr;
 use yaml_rust::{Yaml, YamlLoader};
 
+const DEFAULT_NUMPROCS: i64 = 1;
+const DEFAULT_UMASK: u32 = 0o022;
+const DEFAULT_CWD: &str = ".";
+const DEFAULT_AUTOSTART: bool = true;
+const DEFAULT_AUTORESTART: RestartPolicy = RestartPolicy::Unexpected;
+const DEFAULT_EXITCODES: [i64; 1] = [0];
+const DEFAULT_STARTRETRIES: i64 = 3;
+const DEFAULT_STARTTIME: i64 = 10;
+const DEFAULT_STOPSIGNAL: &str = "TERM";
+const DEFAULT_STOPTIME: i64 = 10;
+const DEFAULT_STDOUT: &str = "";
+const DEFAULT_STDERR: &str = "";
+
 #[derive(Debug)]
 pub struct ConfigError {
     details: String,
@@ -78,20 +91,20 @@ impl ProgramConfig {
             name,
             //TODO: return error with missing cmd field
             cmd: get_str_field(conf, "cmd", "")?,
-            numprocs: get_num_field(conf, "numprocs", 1)?,
+            numprocs: get_num_field(conf, "numprocs", DEFAULT_NUMPROCS)?,
             umask: get_umask(conf, "umask")?,
             //TODO: test behavior with no workingdir
-            workingdir: get_str_field(conf, "workingdir", ".")?,
-            autostart: get_bool_field(conf, "autostart", true)?,
+            workingdir: get_str_field(conf, "workingdir", DEFAULT_CWD)?,
+            autostart: get_bool_field(conf, "autostart", DEFAULT_AUTOSTART)?,
             autorestart: get_autorestart(conf, "autorestart")?,
-            exitcodes: get_num_vec_field(conf, "exitcodes", Vec::from([0]))?,
-            startretries: get_num_field(conf, "startretries", 3)?,
-            starttime: get_num_field(conf, "starttime", 10)?,
+            exitcodes: get_num_vec_field(conf, "exitcodes", DEFAULT_EXITCODES.to_vec())?,
+            startretries: get_num_field(conf, "startretries", DEFAULT_STARTRETRIES)?,
+            starttime: get_num_field(conf, "starttime", DEFAULT_STARTTIME)?,
             stopsignal: get_stop_signal(conf)?,
-            stoptime: get_num_field(conf, "stoptime", 10)?,
-            //TODO: define default behavior no stdout or stderr
-            stdout: get_str_field(conf, "stdout", "")?,
-            stderr: get_str_field(conf, "stderr", "")?,
+            stoptime: get_num_field(conf, "stoptime", DEFAULT_STOPTIME)?,
+            //TODO: define default behavior with no stdout or stderr
+            stdout: get_str_field(conf, "stdout", DEFAULT_STDOUT)?,
+            stderr: get_str_field(conf, "stderr", DEFAULT_STDERR)?,
             env: get_hash_str_field(conf, "env", HashMap::new())?,
         })
     }
@@ -177,7 +190,7 @@ impl Config {
 fn get_autorestart(prog: &Yaml, field: &str) -> Result<RestartPolicy, ConfigError> {
     let f = &prog[field];
     if f.is_badvalue() {
-        return Ok(RestartPolicy::Unexpected);
+        return Ok(DEFAULT_AUTORESTART);
     }
     let s = f.as_str();
     if s.is_some() {
@@ -199,7 +212,7 @@ fn get_bool_field(prog: &Yaml, field: &str, default: bool) -> Result<bool, Confi
 
 fn get_umask(prog: &Yaml, field: &str) -> Result<u32, ConfigError> {
     if prog[field].is_badvalue() {
-        return Ok(0o022)
+        return Ok(DEFAULT_UMASK)
     };
     match prog[field].as_i64() {
         Some(s) => match u32::from_str_radix(&s.to_string(), 8) {
@@ -292,7 +305,7 @@ fn gen_name(numprocs: i64, base_name: &str, i: i64) -> String {
 }
 
 fn get_stop_signal(prog: &Yaml) -> Result<Signal, ConfigError> {
-    let ss = get_str_field(prog, "stopsignal", "TERM")?;
+    let ss = get_str_field(prog, "stopsignal", DEFAULT_STOPSIGNAL)?;
     match ("SIG".to_owned() + &ss).parse::<Signal>() {
         Ok(s) => Ok(s),
         Err(_) => Ok(Signal::SIGTERM),
