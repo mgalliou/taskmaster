@@ -184,8 +184,8 @@ impl Config {
         Ok(Config { programs })
     }
 
-    pub fn from_str(str: String) -> Result<Config, ConfigError> {
-        match YamlLoader::load_from_str(&str) {
+    pub fn from_str(str: &str) -> Result<Config, ConfigError> {
+        match YamlLoader::load_from_str(str) {
             Ok(yaml) => Config::from_yaml(&yaml[0]),
             Err(e) => Err(ConfigError::new(&format!(
                 "error scanning config file: {}",
@@ -202,11 +202,10 @@ impl Config {
                 e
             ))),
         }?;
-        match Config::from_str(yaml_str) {
+        match Config::from_str(&yaml_str) {
             Ok(c) => Ok(c),
             Err(e) => Err(ConfigError::new(&format!("Failed to parse yaml: {}", e))),
         }
-
     }
 }
 
@@ -359,34 +358,74 @@ fn get_stop_signal(prog: &Yaml) -> Result<Signal, ConfigError> {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::{self, Config};
+    use crate::config::{self, Config, DEFAULT_NUMPROCS, DEFAULT_UMASK, DEFAULT_CWD, DEFAULT_AUTOSTART, DEFAULT_EXITCODES, DEFAULT_STARTRETRIES, DEFAULT_STARTTIME, LogPath, DEFAULT_AUTORESTART, RestartPolicy};
     use std::collections::HashMap;
 
     #[test]
-    fn it_works() {
-        let c = Config::from_file("cfg/good/cat.yaml").unwrap();
-        assert_eq!(c.programs["cat"].cmd, "/bin/cat");
-        assert_eq!(c.programs["cat"].numprocs, 1);
-        assert_eq!(c.programs["cat"].umask, 0o022);
-        assert!(c.programs["cat"].workingdir == Some("/".to_string()));
-        assert_eq!(c.programs["cat"].autostart, true);
-        assert_eq!(
-            c.programs["cat"].autorestart,
-            config::RestartPolicy::Unexpected
-        );
-        assert_eq!(c.programs["cat"].exitcodes, vec![0, 2]);
-        assert_eq!(c.programs["cat"].startretries, 3);
-        assert_eq!(c.programs["cat"].starttime, 5);
-        assert_eq!(c.programs["cat"].stopsignal.as_str(), "SIGTERM");
-        assert_eq!(c.programs["cat"].stoptime, 10);
-        assert!(c.programs["cat"].stdout.is_path("/tmp/cat.stdout"));
-        assert!(c.programs["cat"].stderr.is_path("/tmp/cat.stderr"));
-        assert_eq!(
-            c.programs["cat"].env,
-            HashMap::from([
-                ("STARTED_BY".to_string(), "taskmaster".to_string()),
+    fn without_default_values() {
+        let yaml = "
+programs:
+  cat:
+    cmd: \"/bin/cat\"
+    numprocs: 2
+    umask: 777
+    workingdir: \"/tmp\"
+    autostart: false
+    autorestart: never
+    exitcodes:
+      - 5
+      - 2
+      - 3
+    startretries: 7
+    starttime: 15
+    stopsignal: KILL
+    stoptime: 18
+    stdout: \"/tmp/default.stdout\"
+    stderr: \"/tmp/default.stderr\"
+    env:
+      STARTED_BY: taskmaster
+      ANSWER: \"42\"";
+        let c = Config::from_str(yaml).unwrap();
+        assert_eq!(c.programs["cat0"].cmd, "/bin/cat");
+        assert_eq!(c.programs["cat0"].numprocs, 2);
+        assert_eq!(c.programs["cat0"].umask, 0o777);
+        assert!(c.programs["cat0"].workingdir == Some("/tmp".to_string()));
+        assert_eq!(c.programs["cat0"].autostart, false);
+        assert_eq!(c.programs["cat0"].autorestart, RestartPolicy::Never);
+        assert_eq!(c.programs["cat0"].exitcodes, vec![5, 2, 3]);
+        assert_eq!(c.programs["cat0"].startretries, 7);
+        assert_eq!(c.programs["cat0"].starttime, 15);
+        assert_eq!(c.programs["cat0"].stopsignal.as_str(), "SIGKILL");
+        assert_eq!(c.programs["cat0"].stoptime, 18);
+        assert!(c.programs["cat0"].stdout.is_path("/tmp/default.stdout"));
+        assert!(c.programs["cat0"].stderr.is_path("/tmp/default.stderr"));
+        assert_eq!(c.programs["cat0"].env,
+            HashMap::from([("STARTED_BY".to_string(), "taskmaster".to_string()),
                 ("ANSWER".to_string(), "42".to_string())
             ])
-        );
+        )
+    }
+
+    #[test]
+    fn with_default_values_only() {
+        let yaml = "
+programs:
+    cat:
+      cmd: \"/bin/cat\"";
+        let c = Config::from_str(yaml).unwrap();
+        assert_eq!(c.programs["cat"].cmd, "/bin/cat");
+        assert_eq!(c.programs["cat"].numprocs, DEFAULT_NUMPROCS);
+        assert_eq!(c.programs["cat"].umask, DEFAULT_UMASK);
+        assert!(c.programs["cat"].workingdir == DEFAULT_CWD);
+        assert_eq!(c.programs["cat"].autostart, DEFAULT_AUTOSTART);
+        assert_eq!(c.programs["cat"].autorestart, DEFAULT_AUTORESTART);
+        assert_eq!(c.programs["cat"].exitcodes, DEFAULT_EXITCODES);
+        assert_eq!(c.programs["cat"].startretries, DEFAULT_STARTRETRIES);
+        assert_eq!(c.programs["cat"].starttime, DEFAULT_STARTTIME);
+        assert_eq!(c.programs["cat"].stopsignal.as_str(), "SIGTERM");
+        assert_eq!(c.programs["cat"].stoptime, DEFAULT_STARTTIME);
+        assert_eq!(c.programs["cat"].stdout, LogPath::Auto);
+        assert_eq!(c.programs["cat"].stderr, LogPath::Auto);
+        assert_eq!(c.programs["cat"].env, HashMap::new());
     }
 }
