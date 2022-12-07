@@ -17,8 +17,8 @@ const DEFAULT_STARTRETRIES: i64 = 3;
 const DEFAULT_STARTTIME: i64 = 10;
 const DEFAULT_STOPSIGNAL: &str = "TERM";
 const DEFAULT_STOPTIME: i64 = 10;
-const DEFAULT_STDOUT: &str = "";
-const DEFAULT_STDERR: &str = "";
+const DEFAULT_STDOUT: &str = "AUTO";
+const DEFAULT_STDERR: &str = "AUTO";
 
 #[derive(Debug)]
 pub struct ConfigError {
@@ -42,6 +42,24 @@ impl fmt::Display for ConfigError {
 impl Error for ConfigError {
     fn description(&self) -> &str {
         &self.details
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum LogPath {
+    Path(String),
+    Auto,
+    Non,
+}
+
+impl LogPath {
+    #[must_use]
+    pub fn is_path(&self, path: &str) -> bool {
+        match self {
+            LogPath::Path(p) => p == path,
+            LogPath::Auto => false,
+            LogPath::Non => false,
+        }
     }
 }
 
@@ -76,8 +94,8 @@ pub struct ProgramConfig {
     pub autostart: bool,
     pub autorestart: RestartPolicy,
     pub exitcodes: Vec<i64>,
-    pub stdout: String,
-    pub stderr: String,
+    pub stdout: LogPath,
+    pub stderr: LogPath,
     pub startretries: i64,
     pub starttime: i64,
     pub stopsignal: Signal,
@@ -101,34 +119,33 @@ impl ProgramConfig {
             starttime: get_num_field(conf, "starttime", DEFAULT_STARTTIME)?,
             stopsignal: get_stop_signal(conf)?,
             stoptime: get_num_field(conf, "stoptime", DEFAULT_STOPTIME)?,
-            //TODO: define default behavior with no stdout or stderr
-            stdout: get_str_field(conf, "stdout", Some(DEFAULT_STDOUT))?,
-            stderr: get_str_field(conf, "stderr", Some(DEFAULT_STDERR))?,
+            stdout: get_log_path_field(conf, "stdout", DEFAULT_STDOUT)?,
+            stderr: get_log_path_field(conf, "stderr", DEFAULT_STDERR)?,
             env: get_hash_str_field(conf, "env", HashMap::new())?,
         })
     }
 
     pub fn open_stdout(&self) -> Stdio {
-        if self.stdout.is_empty() {
-            Stdio::null()
-        } else {
-            match File::create(&self.stdout) {
+        match &self.stdout {
+            LogPath::Path(s) => match File::create(s) {
                 Ok(f) => Stdio::from(f),
                 //TODO: log file opening failure
                 Err(_) => Stdio::null(),
             }
+            LogPath::Auto => todo!(),
+            LogPath::Non => Stdio::null()
         }
     }
 
     pub fn open_stderr(&self) -> Stdio {
-        if self.stderr.is_empty() {
-            Stdio::null()
-        } else {
-            match File::create(&self.stderr) {
+        match &self.stderr {
+            LogPath::Path(s) => match File::create(s) {
                 Ok(f) => Stdio::from(f),
                 //TODO: log file opening failure
                 Err(_) => Stdio::null(),
             }
+            LogPath::Auto => todo!(),
+            LogPath::Non => Stdio::null()
         }
     }
 }
@@ -296,6 +313,18 @@ fn get_str_field(prog: &Yaml, field: &str, default: Option<&str>) -> Result<Stri
     }
 }
 
+fn get_log_path_field(prog: &Yaml, field: &str, default: &str) -> Result<LogPath, ConfigError> {
+    let lp = match get_str_field(prog, field, Some(default)) {
+        Ok(s) => Ok(s),
+        Err(e) => return Err(e),
+    }?;
+    match lp.as_str() {
+        "AUTO" => Ok(LogPath::Auto),
+        "NONE" => Ok(LogPath::Non),
+        s => Ok(LogPath::Path(s.to_owned())),
+    }
+}
+
 fn gen_name(numprocs: i64, base_name: &str, i: i64) -> String {
     if numprocs == 1 {
         base_name.to_string()
@@ -334,8 +363,8 @@ mod tests {
         assert_eq!(c.programs["cat"].starttime, 5);
         assert_eq!(c.programs["cat"].stopsignal.as_str(), "SIGTERM");
         assert_eq!(c.programs["cat"].stoptime, 10);
-        assert_eq!(c.programs["cat"].stdout, "/tmp/cat.stdout");
-        assert_eq!(c.programs["cat"].stderr, "/tmp/cat.stderr");
+        assert!(c.programs["cat"].stdout.is_path("/tmp/cat.stdout"));
+        assert!(c.programs["cat"].stderr.is_path("/tmp/cat.stderr"));
         assert_eq!(
             c.programs["cat"].env,
             HashMap::from([
