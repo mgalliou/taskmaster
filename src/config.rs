@@ -89,12 +89,11 @@ impl ProgramConfig {
     fn from_yaml(name: String, conf: &Yaml) -> Result<ProgramConfig, ConfigError> {
         Ok(ProgramConfig {
             name,
-            //TODO: return error with missing cmd field
-            cmd: get_str_field(conf, "cmd", "")?,
+            cmd: get_str_field(conf, "cmd", None)?,
             numprocs: get_num_field(conf, "numprocs", DEFAULT_NUMPROCS)?,
             umask: get_umask(conf, "umask")?,
             //TODO: test behavior with no workingdir
-            workingdir: get_str_field(conf, "workingdir", DEFAULT_CWD)?,
+            workingdir: get_str_field(conf, "workingdir", Some(DEFAULT_CWD))?,
             autostart: get_bool_field(conf, "autostart", DEFAULT_AUTOSTART)?,
             autorestart: get_autorestart(conf, "autorestart")?,
             exitcodes: get_num_vec_field(conf, "exitcodes", DEFAULT_EXITCODES.to_vec())?,
@@ -103,8 +102,8 @@ impl ProgramConfig {
             stopsignal: get_stop_signal(conf)?,
             stoptime: get_num_field(conf, "stoptime", DEFAULT_STOPTIME)?,
             //TODO: define default behavior with no stdout or stderr
-            stdout: get_str_field(conf, "stdout", DEFAULT_STDOUT)?,
-            stderr: get_str_field(conf, "stderr", DEFAULT_STDERR)?,
+            stdout: get_str_field(conf, "stdout", Some(DEFAULT_STDOUT))?,
+            stderr: get_str_field(conf, "stderr", Some(DEFAULT_STDERR))?,
             env: get_hash_str_field(conf, "env", HashMap::new())?,
         })
     }
@@ -288,11 +287,12 @@ fn get_hash_str_field(prog: &Yaml, field: &str, default: HashMap<String, String>
     .collect()
 }
 
-fn get_str_field(prog: &Yaml, field: &str, default: &str) -> Result<String, ConfigError> {
-    match &prog[field] {
-        Yaml::BadValue => Ok(default.to_string()),
-        Yaml::String(s) => Ok(s.to_string()),
-        _ => Err(ConfigError::new(&format!("field is not a string: {}", field))),
+fn get_str_field(prog: &Yaml, field: &str, default: Option<&str>) -> Result<String, ConfigError> {
+    match (&prog[field], default) {
+        (Yaml::BadValue, Some(d)) => Ok(d.to_string()),
+        (Yaml::BadValue, None) => Err(ConfigError::new(&format!("missing value for field: {}", field))),
+        (Yaml::String(s), _) => Ok(s.to_string()),
+        (_, _) => Err(ConfigError::new(&format!("field {} is not a string", field))),
     }
 }
 
@@ -305,7 +305,7 @@ fn gen_name(numprocs: i64, base_name: &str, i: i64) -> String {
 }
 
 fn get_stop_signal(prog: &Yaml) -> Result<Signal, ConfigError> {
-    let ss = get_str_field(prog, "stopsignal", DEFAULT_STOPSIGNAL)?;
+    let ss = get_str_field(prog, "stopsignal", Some(DEFAULT_STOPSIGNAL))?;
     match ("SIG".to_owned() + &ss).parse::<Signal>() {
         Ok(s) => Ok(s),
         Err(_) => Ok(Signal::SIGTERM),
