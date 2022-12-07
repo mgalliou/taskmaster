@@ -9,7 +9,7 @@ use yaml_rust::{Yaml, YamlLoader};
 
 const DEFAULT_NUMPROCS: i64 = 1;
 const DEFAULT_UMASK: u32 = 0o022;
-const DEFAULT_CWD: &str = ".";
+const DEFAULT_CWD: Option<String> = None;
 const DEFAULT_AUTOSTART: bool = true;
 const DEFAULT_AUTORESTART: RestartPolicy = RestartPolicy::Unexpected;
 const DEFAULT_EXITCODES: [i64; 1] = [0];
@@ -90,7 +90,7 @@ pub struct ProgramConfig {
     pub cmd: String,
     pub numprocs: i64,
     pub umask: u32,
-    pub workingdir: String,
+    pub workingdir: Option<String>,
     pub autostart: bool,
     pub autorestart: RestartPolicy,
     pub exitcodes: Vec<i64>,
@@ -110,8 +110,7 @@ impl ProgramConfig {
             cmd: get_str_field(conf, "cmd", None)?,
             numprocs: get_num_field(conf, "numprocs", DEFAULT_NUMPROCS)?,
             umask: get_umask(conf, "umask")?,
-            //TODO: test behavior with no workingdir
-            workingdir: get_str_field(conf, "workingdir", Some(DEFAULT_CWD))?,
+            workingdir: get_opt_str_field(conf, "workingdir", DEFAULT_CWD)?,
             autostart: get_bool_field(conf, "autostart", DEFAULT_AUTOSTART)?,
             autorestart: get_autorestart(conf, "autorestart")?,
             exitcodes: get_num_vec_field(conf, "exitcodes", DEFAULT_EXITCODES.to_vec())?,
@@ -312,6 +311,15 @@ fn get_hash_str_field(prog: &Yaml, field: &str, default: HashMap<String, String>
     .collect()
 }
 
+fn get_opt_str_field(prog: &Yaml, field: &str, default: Option<String> ) -> Result<Option<String>, ConfigError> {
+    match (&prog[field], default) {
+        (Yaml::BadValue, Some(d)) => Ok(Some(d.to_string())),
+        (Yaml::BadValue, None) => Ok(None),
+        (Yaml::String(s), _) => Ok(Some(s.to_string())),
+        (_, _) => Err(ConfigError::new(&format!("field {} is not a string", field))),
+    }
+}
+
 fn get_str_field(prog: &Yaml, field: &str, default: Option<&str>) -> Result<String, ConfigError> {
     match (&prog[field], default) {
         (Yaml::BadValue, Some(d)) => Ok(d.to_string()),
@@ -360,7 +368,7 @@ mod tests {
         assert_eq!(c.programs["cat"].cmd, "/bin/cat");
         assert_eq!(c.programs["cat"].numprocs, 1);
         assert_eq!(c.programs["cat"].umask, 0o022);
-        assert_eq!(c.programs["cat"].workingdir, "/");
+        assert!(c.programs["cat"].workingdir == Some("/".to_string()));
         assert_eq!(c.programs["cat"].autostart, true);
         assert_eq!(
             c.programs["cat"].autorestart,

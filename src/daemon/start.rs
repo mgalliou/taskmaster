@@ -12,17 +12,18 @@ where
     S: AsRef<OsStr>,
 {
     let mode = unsafe { libc::umask(prog_conf.umask) };
-    let ret = Command::new(cmd_name)
-        .args(args)
+    let mut cmd = Command::new(cmd_name);
+    cmd.args(args)
         .stdout(prog_conf.open_stdout())
         .stderr(prog_conf.open_stderr())
-        .stdin(Stdio::null())
-        .current_dir(prog_conf.workingdir.clone())
-        .spawn();
+        .stdin(Stdio::null());
+    if let Some(wd) = &prog_conf.workingdir {
+        cmd.current_dir(wd);
+    };
     unsafe {
         libc::umask(mode);
     }
-    ret
+    cmd.spawn()
 }
 
 fn start_program(name: String, proc: &mut ProcessInfo) -> String {
