@@ -132,7 +132,11 @@ impl ProgramConfig {
                 //TODO: log file opening failure
                 Err(_) => Stdio::null(),
             }
-            LogPath::Auto => todo!(),
+            LogPath::Auto => match File::create(format!("/tmp/tackmasterd/{}.stdout.log", self.name)) {
+                Ok(f) => Stdio::from(f),
+                //TODO: log file opening failure
+                Err(_) => Stdio::null(),
+            }
             LogPath::Non => Stdio::null()
         }
     }
@@ -144,7 +148,11 @@ impl ProgramConfig {
                 //TODO: log file opening failure
                 Err(_) => Stdio::null(),
             }
-            LogPath::Auto => todo!(),
+            LogPath::Auto => match File::create(format!("/tmp/tackmasterd/{}.stderr.log", self.name)) {
+                Ok(f) => Stdio::from(f),
+                //TODO: log file opening failure
+                Err(_) => Stdio::null(),
+            }
             LogPath::Non => Stdio::null()
         }
     }
