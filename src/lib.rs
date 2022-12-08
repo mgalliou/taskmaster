@@ -1,3 +1,3 @@
 pub mod common;
-pub mod config;
+pub mod cfg;
 pub mod daemon;

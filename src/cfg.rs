@@ -358,7 +358,7 @@ fn get_stop_signal(prog: &Yaml) -> Result<Signal, ConfigError> {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::{self, Config, RestartPolicy};
+    use crate::cfg::{self, Config, RestartPolicy};
     use std::collections::HashMap;
 
     #[test]
@@ -414,18 +414,18 @@ programs:
       cmd: \"/bin/cat\"";
         let c = Config::from_str(yaml).unwrap();
         assert_eq!(c.programs["cat"].cmd, "/bin/cat");
-        assert_eq!(c.programs["cat"].numprocs, config::DFLT_NUMPROCS);
-        assert_eq!(c.programs["cat"].umask, config::DFLT_UMASK);
-        assert!(c.programs["cat"].workingdir ==  config::DFLT_CWD);
-        assert_eq!(c.programs["cat"].autostart, config::DFLT_AUTOSTART);
-        assert_eq!(c.programs["cat"].autorestart, config::DFLT_AUTORESTART);
-        assert_eq!(c.programs["cat"].exitcodes, config::DFLT_EXITCODES);
-        assert_eq!(c.programs["cat"].startretries, config::DFLT_STARTRETRIES);
-        assert_eq!(c.programs["cat"].starttime, config::DLFT_STARTTIME);
+        assert_eq!(c.programs["cat"].numprocs, cfg::DFLT_NUMPROCS);
+        assert_eq!(c.programs["cat"].umask, cfg::DFLT_UMASK);
+        assert!(c.programs["cat"].workingdir ==  cfg::DFLT_CWD);
+        assert_eq!(c.programs["cat"].autostart, cfg::DFLT_AUTOSTART);
+        assert_eq!(c.programs["cat"].autorestart, cfg::DFLT_AUTORESTART);
+        assert_eq!(c.programs["cat"].exitcodes, cfg::DFLT_EXITCODES);
+        assert_eq!(c.programs["cat"].startretries, cfg::DFLT_STARTRETRIES);
+        assert_eq!(c.programs["cat"].starttime, cfg::DLFT_STARTTIME);
         assert_eq!(c.programs["cat"].stopsignal.as_str(), "SIGTERM");
-        assert_eq!(c.programs["cat"].stoptime, config::DLFT_STARTTIME);
-        assert_eq!(c.programs["cat"].stdout, config::LogPath::Auto);
-        assert_eq!(c.programs["cat"].stderr, config::LogPath::Auto);
+        assert_eq!(c.programs["cat"].stoptime, cfg::DLFT_STARTTIME);
+        assert_eq!(c.programs["cat"].stdout, cfg::LogPath::Auto);
+        assert_eq!(c.programs["cat"].stderr, cfg::LogPath::Auto);
         assert_eq!(c.programs["cat"].env, HashMap::new());
     }
 }

@@ -1,7 +1,7 @@
 extern crate yaml_rust;
 use std::collections::HashMap;
 use std::os::unix::net::UnixListener;
-use taskmaster::config::{ConfigError, Config};
+use taskmaster::cfg::{ConfigError, Config};
 use taskmaster::daemon::Daemon;
 
 fn main() -> Result<(), ConfigError> {

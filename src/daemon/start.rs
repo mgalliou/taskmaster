@@ -1,6 +1,6 @@
 extern crate libc;
 use super::{ProcessInfo, ProcessList, ProcessStatus, status, Daemon};
-use crate::config::{Config, ProgramConfig};
+use crate::cfg::{Config, ProgramConfig};
 use std::ffi::OsStr;
 use std::io;
 use std::process::{Child, Command, Stdio};

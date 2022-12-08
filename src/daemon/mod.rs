@@ -5,7 +5,7 @@ use std::os::unix::net::{UnixListener, UnixStream};
 use std::process::{Child, ExitStatus};
 use std::time::Instant;
 
-use crate::config::{Config, ProgramConfig};
+use crate::cfg::{Config, ProgramConfig};
 
 pub mod reload;
 pub mod restart;

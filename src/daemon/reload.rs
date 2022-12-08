@@ -1,3 +1,3 @@
-use crate::config::Config;
+use crate::cfg::Config;
 
 fn reload(command: Vec<&str>, conf: &Config) -> () {}
