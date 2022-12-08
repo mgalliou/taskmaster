@@ -7,18 +7,18 @@ use std::process::Stdio;
 use std::str::FromStr;
 use yaml_rust::{Yaml, YamlLoader};
 
-const DEFAULT_NUMPROCS: i64 = 1;
-const DEFAULT_UMASK: u32 = 0o022;
-const DEFAULT_CWD: Option<String> = None;
-const DEFAULT_AUTOSTART: bool = true;
-const DEFAULT_AUTORESTART: RestartPolicy = RestartPolicy::Unexpected;
-const DEFAULT_EXITCODES: [i64; 1] = [0];
-const DEFAULT_STARTRETRIES: i64 = 3;
-const DEFAULT_STARTTIME: i64 = 10;
-const DEFAULT_STOPSIGNAL: &str = "TERM";
-const DEFAULT_STOPTIME: i64 = 10;
-const DEFAULT_STDOUT: &str = "AUTO";
-const DEFAULT_STDERR: &str = "AUTO";
+const DFLT_NUMPROCS: i64 = 1;
+const DFLT_UMASK: u32 = 0o022;
+const DFLT_CWD: Option<String> = None;
+const DFLT_AUTOSTART: bool = true;
+const DFLT_AUTORESTART: RestartPolicy = RestartPolicy::Unexpected;
+const DFLT_EXITCODES: [i64; 1] = [0];
+const DFLT_STARTRETRIES: i64 = 3;
+const DLFT_STARTTIME: i64 = 10;
+const DFLT_STOPSIGNAL: &str = "TERM";
+const DFLT_STOPTIME: i64 = 10;
+const DFLT_STDOUT: &str = "AUTO";
+const DFLT_STDERR: &str = "AUTO";
 
 #[derive(Debug)]
 pub struct ConfigError {
@@ -108,18 +108,18 @@ impl ProgramConfig {
         Ok(ProgramConfig {
             name,
             cmd: get_str_field(conf, "cmd", None)?,
-            numprocs: get_num_field(conf, "numprocs", DEFAULT_NUMPROCS)?,
+            numprocs: get_num_field(conf, "numprocs", DFLT_NUMPROCS)?,
             umask: get_umask(conf, "umask")?,
-            workingdir: get_opt_str_field(conf, "workingdir", DEFAULT_CWD)?,
-            autostart: get_bool_field(conf, "autostart", DEFAULT_AUTOSTART)?,
+            workingdir: get_opt_str_field(conf, "workingdir", DFLT_CWD)?,
+            autostart: get_bool_field(conf, "autostart", DFLT_AUTOSTART)?,
             autorestart: get_autorestart(conf, "autorestart")?,
-            exitcodes: get_num_vec_field(conf, "exitcodes", DEFAULT_EXITCODES.to_vec())?,
-            startretries: get_num_field(conf, "startretries", DEFAULT_STARTRETRIES)?,
-            starttime: get_num_field(conf, "starttime", DEFAULT_STARTTIME)?,
+            exitcodes: get_num_vec_field(conf, "exitcodes", DFLT_EXITCODES.to_vec())?,
+            startretries: get_num_field(conf, "startretries", DFLT_STARTRETRIES)?,
+            starttime: get_num_field(conf, "starttime", DLFT_STARTTIME)?,
             stopsignal: get_stop_signal(conf)?,
-            stoptime: get_num_field(conf, "stoptime", DEFAULT_STOPTIME)?,
-            stdout: get_log_path_field(conf, "stdout", DEFAULT_STDOUT)?,
-            stderr: get_log_path_field(conf, "stderr", DEFAULT_STDERR)?,
+            stoptime: get_num_field(conf, "stoptime", DFLT_STOPTIME)?,
+            stdout: get_log_path_field(conf, "stdout", DFLT_STDOUT)?,
+            stderr: get_log_path_field(conf, "stderr", DFLT_STDERR)?,
             env: get_hash_str_field(conf, "env", HashMap::new())?,
         })
     }
@@ -212,7 +212,7 @@ impl Config {
 fn get_autorestart(prog: &Yaml, field: &str) -> Result<RestartPolicy, ConfigError> {
     let f = &prog[field];
     if f.is_badvalue() {
-        return Ok(DEFAULT_AUTORESTART);
+        return Ok(DFLT_AUTORESTART);
     }
     let s = f.as_str();
     if s.is_some() {
@@ -234,7 +234,7 @@ fn get_bool_field(prog: &Yaml, field: &str, default: bool) -> Result<bool, Confi
 
 fn get_umask(prog: &Yaml, field: &str) -> Result<u32, ConfigError> {
     if prog[field].is_badvalue() {
-        return Ok(DEFAULT_UMASK)
+        return Ok(DFLT_UMASK)
     };
     match prog[field].as_i64() {
         Some(s) => match u32::from_str_radix(&s.to_string(), 8) {
@@ -349,7 +349,7 @@ fn gen_name(numprocs: i64, base_name: &str, i: i64) -> String {
 }
 
 fn get_stop_signal(prog: &Yaml) -> Result<Signal, ConfigError> {
-    let ss = get_str_field(prog, "stopsignal", Some(DEFAULT_STOPSIGNAL))?;
+    let ss = get_str_field(prog, "stopsignal", Some(DFLT_STOPSIGNAL))?;
     match ("SIG".to_owned() + &ss).parse::<Signal>() {
         Ok(s) => Ok(s),
         Err(_) => Ok(Signal::SIGTERM),
@@ -358,7 +358,7 @@ fn get_stop_signal(prog: &Yaml) -> Result<Signal, ConfigError> {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::{self, Config, DEFAULT_NUMPROCS, DEFAULT_UMASK, DEFAULT_CWD, DEFAULT_AUTOSTART, DEFAULT_EXITCODES, DEFAULT_STARTRETRIES, DEFAULT_STARTTIME, LogPath, DEFAULT_AUTORESTART, RestartPolicy};
+    use crate::config::{self, Config, RestartPolicy};
     use std::collections::HashMap;
 
     #[test]
@@ -414,18 +414,18 @@ programs:
       cmd: \"/bin/cat\"";
         let c = Config::from_str(yaml).unwrap();
         assert_eq!(c.programs["cat"].cmd, "/bin/cat");
-        assert_eq!(c.programs["cat"].numprocs, DEFAULT_NUMPROCS);
-        assert_eq!(c.programs["cat"].umask, DEFAULT_UMASK);
-        assert!(c.programs["cat"].workingdir == DEFAULT_CWD);
-        assert_eq!(c.programs["cat"].autostart, DEFAULT_AUTOSTART);
-        assert_eq!(c.programs["cat"].autorestart, DEFAULT_AUTORESTART);
-        assert_eq!(c.programs["cat"].exitcodes, DEFAULT_EXITCODES);
-        assert_eq!(c.programs["cat"].startretries, DEFAULT_STARTRETRIES);
-        assert_eq!(c.programs["cat"].starttime, DEFAULT_STARTTIME);
+        assert_eq!(c.programs["cat"].numprocs, config::DFLT_NUMPROCS);
+        assert_eq!(c.programs["cat"].umask, config::DFLT_UMASK);
+        assert!(c.programs["cat"].workingdir ==  config::DFLT_CWD);
+        assert_eq!(c.programs["cat"].autostart, config::DFLT_AUTOSTART);
+        assert_eq!(c.programs["cat"].autorestart, config::DFLT_AUTORESTART);
+        assert_eq!(c.programs["cat"].exitcodes, config::DFLT_EXITCODES);
+        assert_eq!(c.programs["cat"].startretries, config::DFLT_STARTRETRIES);
+        assert_eq!(c.programs["cat"].starttime, config::DLFT_STARTTIME);
         assert_eq!(c.programs["cat"].stopsignal.as_str(), "SIGTERM");
-        assert_eq!(c.programs["cat"].stoptime, DEFAULT_STARTTIME);
-        assert_eq!(c.programs["cat"].stdout, LogPath::Auto);
-        assert_eq!(c.programs["cat"].stderr, LogPath::Auto);
+        assert_eq!(c.programs["cat"].stoptime, config::DLFT_STARTTIME);
+        assert_eq!(c.programs["cat"].stdout, config::LogPath::Auto);
+        assert_eq!(c.programs["cat"].stderr, config::LogPath::Auto);
         assert_eq!(c.programs["cat"].env, HashMap::new());
     }
 }
