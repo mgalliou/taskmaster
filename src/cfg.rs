@@ -426,4 +426,149 @@ programs:
         assert_eq!(c.programs["cat"].stderr, cfg::LogPath::Auto);
         assert_eq!(c.programs["cat"].env, HashMap::new());
     }
+
+    #[test]
+    fn with_invalid_numprocs() {
+        let yaml = "
+programs:
+  cat:
+    cmd: \"/bin/cat\"
+    numprocs: error";
+        let c = Config::from_str(yaml);
+        assert!(c.is_err())
+    }
+
+    #[test]
+    fn with_invalid_umask() {
+        let yaml = "
+programs:
+  cat:
+    cmd: \"/bin/cat\"
+    umask: error";
+        let c = Config::from_str(yaml);
+        assert!(c.is_err())
+    }
+
+    #[test]
+    fn with_invalid_workingdir() {
+        let yaml = "
+programs:
+  cat:
+    cmd: \"/bin/cat\"
+    workingdir: 10";
+        let c = Config::from_str(yaml);
+        assert!(c.is_err())
+    }
+
+    #[test]
+    fn with_invalid_autostart() {
+        let yaml = "
+programs:
+  cat:
+    cmd: \"/bin/cat\"
+    autostart: 10";
+        let c = Config::from_str(yaml);
+        assert!(c.is_err())
+    }
+
+    #[test]
+    fn with_invalid_autorestart() {
+        let yaml = "
+programs:
+  cat:
+    cmd: \"/bin/cat\"
+    autorestart: 10";
+        let c = Config::from_str(yaml);
+        assert!(c.is_err())
+    }
+
+    #[test]
+    fn with_invalid_exitcodes() {
+        let yaml = "
+programs:
+  cat:
+    cmd: \"/bin/cat\"
+    exitcodes:
+      - err1
+      - err2";
+        let c = Config::from_str(yaml);
+        assert!(c.is_err())
+    }
+
+    #[test]
+    fn with_invalid_startretries() {
+        let yaml = "
+programs:
+  cat:
+    cmd: \"/bin/cat\"
+    startretries: err";
+        let c = Config::from_str(yaml);
+        assert!(c.is_err())
+    }
+
+    #[test]
+    fn with_invalid_starttime() {
+        let yaml = "
+programs:
+  cat:
+    cmd: \"/bin/cat\"
+    starttime: err";
+        let c = Config::from_str(yaml);
+        assert!(c.is_err())
+    }
+
+    #[test]
+    fn with_invalid_stopsignal() {
+        let yaml = "
+programs:
+  cat:
+    cmd: \"/bin/cat\"
+    stopsinal: err";
+        let c = Config::from_str(yaml);
+        assert!(c.is_err())
+    }
+
+    #[test]
+    fn with_invalid_stoptime() {
+        let yaml = "
+programs:
+  cat:
+    cmd: \"/bin/cat\"
+    stoptime: err";
+        let c = Config::from_str(yaml);
+        assert!(c.is_err())
+    }
+
+    #[test]
+    fn with_invalid_stdout() {
+        let yaml = "
+programs:
+  cat:
+    cmd: \"/bin/cat\"
+    stdout: 10";
+        let c = Config::from_str(yaml);
+        assert!(c.is_err())
+    }
+
+    #[test]
+    fn with_invalid_stderr() {
+        let yaml = "
+programs:
+  cat:
+    cmd: \"/bin/cat\"
+    stderr: 10";
+        let c = Config::from_str(yaml);
+        assert!(c.is_err())
+    }
+
+    #[test]
+    fn with_invalid_env() {
+        let yaml = "
+programs:
+  cat:
+    cmd: \"/bin/cat\"
+    stderr: 10";
+        let c = Config::from_str(yaml);
+        assert!(c.is_err())
+    }
 }
