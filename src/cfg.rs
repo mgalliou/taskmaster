@@ -104,23 +104,23 @@ pub struct ProgramConfig {
 }
 
 impl ProgramConfig {
-    fn from_yaml(name: String, conf: &Yaml) -> Result<ProgramConfig, ConfigError> {
+    fn from_yaml(yaml: &Yaml, name: String) -> Result<ProgramConfig, ConfigError> {
         Ok(ProgramConfig {
             name,
-            cmd: get_str_field(conf, "cmd", None)?,
-            numprocs: get_num_field(conf, "numprocs", DFLT_NUMPROCS)?,
-            umask: get_umask(conf, "umask")?,
-            workingdir: get_opt_str_field(conf, "workingdir", DFLT_CWD)?,
-            autostart: get_bool_field(conf, "autostart", DFLT_AUTOSTART)?,
-            autorestart: get_autorestart(conf, "autorestart")?,
-            exitcodes: get_num_vec_field(conf, "exitcodes", DFLT_EXITCODES.to_vec())?,
-            startretries: get_num_field(conf, "startretries", DFLT_STARTRETRIES)?,
-            starttime: get_num_field(conf, "starttime", DLFT_STARTTIME)?,
-            stopsignal: get_stop_signal(conf)?,
-            stoptime: get_num_field(conf, "stoptime", DFLT_STOPTIME)?,
-            stdout: get_log_path_field(conf, "stdout", DFLT_STDOUT)?,
-            stderr: get_log_path_field(conf, "stderr", DFLT_STDERR)?,
-            env: get_hash_str_field(conf, "env", HashMap::new())?,
+            cmd: get_str_field(yaml, "cmd", None)?,
+            numprocs: get_num_field(yaml, "numprocs", DFLT_NUMPROCS)?,
+            umask: get_umask(yaml, "umask")?,
+            workingdir: get_opt_str_field(yaml, "workingdir", DFLT_CWD)?,
+            autostart: get_bool_field(yaml, "autostart", DFLT_AUTOSTART)?,
+            autorestart: get_autorestart(yaml, "autorestart")?,
+            exitcodes: get_num_vec_field(yaml, "exitcodes", DFLT_EXITCODES.to_vec())?,
+            startretries: get_num_field(yaml, "startretries", DFLT_STARTRETRIES)?,
+            starttime: get_num_field(yaml, "starttime", DLFT_STARTTIME)?,
+            stopsignal: get_stop_signal(yaml)?,
+            stoptime: get_num_field(yaml, "stoptime", DFLT_STOPTIME)?,
+            stdout: get_log_path_field(yaml, "stdout", DFLT_STDOUT)?,
+            stderr: get_log_path_field(yaml, "stderr", DFLT_STDERR)?,
+            env: get_hash_str_field(yaml, "env", HashMap::new())?,
         })
     }
 
@@ -167,7 +167,7 @@ impl Config {
         let mut programs: HashMap<String, ProgramConfig> = HashMap::new();
         let yprog = match yaml["programs"].as_hash() {
             Some(y) => Ok(y),
-            None => Err(ConfigError::new("no program field found")),
+            None => Err(ConfigError::new("no programs field found")),
         }?;
         for (yname, yconf) in yprog.into_iter() {
             let numprocs = get_num_field(yconf, "numprocs", 1)?;
@@ -177,7 +177,7 @@ impl Config {
             }?;
             for i in 0..numprocs {
                 let name = gen_name(numprocs, base_name, i);
-                let conf = ProgramConfig::from_yaml(name.clone(), yconf)?;
+                let conf = ProgramConfig::from_yaml(yconf, name.clone())?;
                 programs.insert(name.clone(), conf);
             }
         }
@@ -214,11 +214,9 @@ fn get_autorestart(prog: &Yaml, field: &str) -> Result<RestartPolicy, ConfigErro
     if f.is_badvalue() {
         return Ok(DFLT_AUTORESTART);
     }
-    let s = f.as_str();
-    if s.is_some() {
-        match RestartPolicy::from_str(s.unwrap()) {
-            Ok(rp) => return Ok(rp),
-            Err(_) => {},
+    if let Some(s) = f.as_str() {
+        if let Ok(rp) = RestartPolicy::from_str(s) {
+            return Ok(rp);
         }
     }
     Err(ConfigError::new(&format!("invalid value for field: {}", field)))
