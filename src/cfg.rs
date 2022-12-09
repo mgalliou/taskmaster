@@ -240,7 +240,10 @@ fn get_stop_signal(prog: &Yaml) -> Result<Signal, ConfigError> {
     let ss = get_str_field(prog, "stopsignal", Some(DFLT_STOPSIGNAL))?;
     match ("SIG".to_owned() + &ss).parse::<Signal>() {
         Ok(s) => Ok(s),
-        Err(_) => Ok(Signal::SIGTERM),
+        Err(_) => Err(ConfigError::new(&format!(
+                    "invalid value for field: {}",
+                    "stopsignal"
+                    ))),
     }
 }
 
@@ -523,7 +526,7 @@ programs:
 programs:
   cat:
     cmd: \"/bin/cat\"
-    stopsinal: err";
+    stopsignal: err";
         let c = Config::from_str(yaml);
         assert!(c.is_err())
     }
