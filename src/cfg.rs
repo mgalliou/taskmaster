@@ -21,66 +21,54 @@ const DFLT_STDOUT: &str = "AUTO";
 const DFLT_STDERR: &str = "AUTO";
 
 #[derive(Debug)]
-pub struct ConfigError {
-    details: String,
+pub struct Config {
+    pub programs: HashMap<String, ProgramConfig>,
 }
 
-impl ConfigError {
-    fn new(msg: &str) -> ConfigError {
-        ConfigError {
-            details: msg.to_string(),
+impl Config {
+    pub fn from_file(path: &str) -> Result<Config, ConfigError> {
+        let yaml_str = match fs::read_to_string(path) {
+            Ok(f) => Ok(f),
+            Err(e) => Err(ConfigError::new(&format!(
+                "Failed to read config file: {}",
+                e
+            ))),
+        }?;
+        match Config::from_str(&yaml_str) {
+            Ok(c) => Ok(c),
+            Err(e) => Err(ConfigError::new(&format!("Failed to parse yaml: {}", e))),
         }
     }
-}
 
-impl fmt::Display for ConfigError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.details)
-    }
-}
-
-impl Error for ConfigError {
-    fn description(&self) -> &str {
-        &self.details
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum LogPath {
-    Path(String),
-    Auto,
-    Non,
-}
-
-impl LogPath {
-    #[must_use]
-    pub fn is_path(&self, path: &str) -> bool {
-        match self {
-            LogPath::Path(p) => p == path,
-            LogPath::Auto => false,
-            LogPath::Non => false,
+    pub fn from_str(str: &str) -> Result<Config, ConfigError> {
+        match YamlLoader::load_from_str(str) {
+            Ok(yaml) => Config::from_yaml(&yaml[0]),
+            Err(e) => Err(ConfigError::new(&format!(
+                "error scanning config file: {}",
+                e.to_string()
+            ))),
         }
     }
-}
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum RestartPolicy {
-    Always,
-    Never,
-    Unexpected,
-}
-
-impl FromStr for RestartPolicy {
-    //TODO: Use a better error type
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<RestartPolicy, Self::Err> {
-        match s {
-            "always" => Ok(RestartPolicy::Always),
-            "never" => Ok(RestartPolicy::Never),
-            "unexpected" => Ok(RestartPolicy::Unexpected),
-            _ => Err(()),
+    fn from_yaml(yaml: &Yaml) -> Result<Config, ConfigError> {
+        let mut programs: HashMap<String, ProgramConfig> = HashMap::new();
+        let yprog = match yaml["programs"].as_hash() {
+            Some(y) => Ok(y),
+            None => Err(ConfigError::new("no programs field found")),
+        }?;
+        for (yname, yconf) in yprog.into_iter() {
+            let numprocs = get_num_field(yconf, "numprocs", 1)?;
+            let base_name = match yname.as_str() {
+                Some(n) => Ok(n),
+                None => Err(ConfigError::new("program name is not a string")),
+            }?;
+            for i in 0..numprocs {
+                let name = gen_name(numprocs, base_name, i);
+                let conf = ProgramConfig::from_yaml(yconf, name.clone())?;
+                programs.insert(name.clone(), conf);
+            }
         }
+        Ok(Config { programs })
     }
 }
 
@@ -157,55 +145,47 @@ impl ProgramConfig {
     }
 }
 
-#[derive(Debug)]
-pub struct Config {
-    pub programs: HashMap<String, ProgramConfig>,
+fn gen_name(numprocs: i64, base_name: &str, i: i64) -> String {
+    if numprocs == 1 {
+        base_name.to_string()
+    } else {
+        base_name.to_string() + &i.to_string()
+    }
 }
 
-impl Config {
-    fn from_yaml(yaml: &Yaml) -> Result<Config, ConfigError> {
-        let mut programs: HashMap<String, ProgramConfig> = HashMap::new();
-        let yprog = match yaml["programs"].as_hash() {
-            Some(y) => Ok(y),
-            None => Err(ConfigError::new("no programs field found")),
-        }?;
-        for (yname, yconf) in yprog.into_iter() {
-            let numprocs = get_num_field(yconf, "numprocs", 1)?;
-            let base_name = match yname.as_str() {
-                Some(n) => Ok(n),
-                None => Err(ConfigError::new("program name is not a string")),
-            }?;
-            for i in 0..numprocs {
-                let name = gen_name(numprocs, base_name, i);
-                let conf = ProgramConfig::from_yaml(yconf, name.clone())?;
-                programs.insert(name.clone(), conf);
-            }
-        }
-        Ok(Config { programs })
+fn get_str_field(prog: &Yaml, field: &str, default: Option<&str>) -> Result<String, ConfigError> {
+    match (&prog[field], default) {
+        (Yaml::BadValue, Some(d)) => Ok(d.to_string()),
+        (Yaml::BadValue, None) => Err(ConfigError::new(&format!("missing value for field: {}", field))),
+        (Yaml::String(s), _) => Ok(s.to_string()),
+        (_, _) => Err(ConfigError::new(&format!("field {} is not a string", field))),
     }
+}
 
-    pub fn from_str(str: &str) -> Result<Config, ConfigError> {
-        match YamlLoader::load_from_str(str) {
-            Ok(yaml) => Config::from_yaml(&yaml[0]),
-            Err(e) => Err(ConfigError::new(&format!(
-                "error scanning config file: {}",
-                e.to_string()
-            ))),
-        }
+fn get_num_field(prog: &Yaml, field: &str, default: i64) -> Result<i64, ConfigError> {
+    match prog[field] {
+        Yaml::BadValue => Ok(default),
+        Yaml::Integer(n) => Ok(n),
+        _ => Err(ConfigError::new(&format!("invalid value for field: {}", field)))
     }
+}
 
-    pub fn from_file(path: &str) -> Result<Config, ConfigError> {
-        let yaml_str = match fs::read_to_string(path) {
-            Ok(f) => Ok(f),
-            Err(e) => Err(ConfigError::new(&format!(
-                "Failed to read config file: {}",
-                e
-            ))),
-        }?;
-        match Config::from_str(&yaml_str) {
-            Ok(c) => Ok(c),
-            Err(e) => Err(ConfigError::new(&format!("Failed to parse yaml: {}", e))),
-        }
+fn get_umask(prog: &Yaml, field: &str) -> Result<u32, ConfigError> {
+    if prog[field].is_badvalue() {
+        return Ok(DFLT_UMASK)
+    };
+    match prog[field].as_i64() {
+        Some(s) => match u32::from_str_radix(&s.to_string(), 8) {
+            Ok(n) => Ok(n),
+            Err(_) => Err(ConfigError::new(&format!(
+                        "failed to convert umask: {}",
+                        field
+                        ))),
+        },
+        None => Err(ConfigError::new(&format!(
+                    "field not found or not a number: {}",
+                    field
+                    ))),
     }
 }
 
@@ -222,38 +202,20 @@ fn get_autorestart(prog: &Yaml, field: &str) -> Result<RestartPolicy, ConfigErro
     Err(ConfigError::new(&format!("invalid value for field: {}", field)))
 }
 
+fn get_opt_str_field(prog: &Yaml, field: &str, default: Option<String> ) -> Result<Option<String>, ConfigError> {
+    match (&prog[field], default) {
+        (Yaml::BadValue, Some(d)) => Ok(Some(d.to_string())),
+        (Yaml::BadValue, None) => Ok(None),
+        (Yaml::String(s), _) => Ok(Some(s.to_string())),
+        (_, _) => Err(ConfigError::new(&format!("field {} is not a string", field))),
+    }
+}
+
 fn get_bool_field(prog: &Yaml, field: &str, default: bool) -> Result<bool, ConfigError> {
     match prog[field] {
         Yaml::BadValue => Ok(default),
         Yaml::Boolean(b) => Ok(b),
         _ => Err(ConfigError::new(&format!("field is not a boolean: {}", field))),
-    }
-}
-
-fn get_umask(prog: &Yaml, field: &str) -> Result<u32, ConfigError> {
-    if prog[field].is_badvalue() {
-        return Ok(DFLT_UMASK)
-    };
-    match prog[field].as_i64() {
-        Some(s) => match u32::from_str_radix(&s.to_string(), 8) {
-            Ok(n) => Ok(n),
-            Err(_) => Err(ConfigError::new(&format!(
-                "failed to convert umask: {}",
-                field
-            ))),
-        },
-        None => Err(ConfigError::new(&format!(
-            "field not found or not a number: {}",
-            field
-        ))),
-    }
-}
-
-fn get_num_field(prog: &Yaml, field: &str, default: i64) -> Result<i64, ConfigError> {
-    match prog[field] {
-        Yaml::BadValue => Ok(default),
-        Yaml::Integer(n) => Ok(n),
-        _ => Err(ConfigError::new(&format!("invalid value for field: {}", field)))
     }
 }
 
@@ -271,7 +233,27 @@ fn get_num_vec_field(prog: &Yaml, field: &str, default: Vec<i64>) -> Result<Vec<
                         field
                         ))),
         })
-        .collect()
+    .collect()
+}
+
+fn get_stop_signal(prog: &Yaml) -> Result<Signal, ConfigError> {
+    let ss = get_str_field(prog, "stopsignal", Some(DFLT_STOPSIGNAL))?;
+    match ("SIG".to_owned() + &ss).parse::<Signal>() {
+        Ok(s) => Ok(s),
+        Err(_) => Ok(Signal::SIGTERM),
+    }
+}
+
+fn get_log_path_field(prog: &Yaml, field: &str, default: &str) -> Result<LogPath, ConfigError> {
+    let lp = match get_str_field(prog, field, Some(default)) {
+        Ok(s) => Ok(s),
+        Err(e) => return Err(e),
+    }?;
+    match lp.as_str() {
+        "AUTO" => Ok(LogPath::Auto),
+        "NONE" => Ok(LogPath::Non),
+        s => Ok(LogPath::Path(s.to_owned())),
+    }
 }
 
 fn get_hash_str_field(prog: &Yaml, field: &str, default: HashMap<String, String>) -> Result<HashMap<String, String>, ConfigError> {
@@ -308,49 +290,67 @@ fn get_hash_str_field(prog: &Yaml, field: &str, default: HashMap<String, String>
     .collect()
 }
 
-fn get_opt_str_field(prog: &Yaml, field: &str, default: Option<String> ) -> Result<Option<String>, ConfigError> {
-    match (&prog[field], default) {
-        (Yaml::BadValue, Some(d)) => Ok(Some(d.to_string())),
-        (Yaml::BadValue, None) => Ok(None),
-        (Yaml::String(s), _) => Ok(Some(s.to_string())),
-        (_, _) => Err(ConfigError::new(&format!("field {} is not a string", field))),
+#[derive(Debug, Clone, PartialEq)]
+pub enum RestartPolicy {
+    Always,
+    Never,
+    Unexpected,
+}
+
+impl FromStr for RestartPolicy {
+    //TODO: Use a better error type
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<RestartPolicy, Self::Err> {
+        match s {
+            "always" => Ok(RestartPolicy::Always),
+            "never" => Ok(RestartPolicy::Never),
+            "unexpected" => Ok(RestartPolicy::Unexpected),
+            _ => Err(()),
+        }
     }
 }
 
-fn get_str_field(prog: &Yaml, field: &str, default: Option<&str>) -> Result<String, ConfigError> {
-    match (&prog[field], default) {
-        (Yaml::BadValue, Some(d)) => Ok(d.to_string()),
-        (Yaml::BadValue, None) => Err(ConfigError::new(&format!("missing value for field: {}", field))),
-        (Yaml::String(s), _) => Ok(s.to_string()),
-        (_, _) => Err(ConfigError::new(&format!("field {} is not a string", field))),
+#[derive(Debug, Clone, PartialEq)]
+pub enum LogPath {
+    Path(String),
+    Auto,
+    Non,
+}
+
+impl LogPath {
+    #[must_use]
+    pub fn is_path(&self, path: &str) -> bool {
+        match self {
+            LogPath::Path(p) => p == path,
+            LogPath::Auto => false,
+            LogPath::Non => false,
+        }
     }
 }
 
-fn get_log_path_field(prog: &Yaml, field: &str, default: &str) -> Result<LogPath, ConfigError> {
-    let lp = match get_str_field(prog, field, Some(default)) {
-        Ok(s) => Ok(s),
-        Err(e) => return Err(e),
-    }?;
-    match lp.as_str() {
-        "AUTO" => Ok(LogPath::Auto),
-        "NONE" => Ok(LogPath::Non),
-        s => Ok(LogPath::Path(s.to_owned())),
+#[derive(Debug)]
+pub struct ConfigError {
+    details: String,
+}
+
+impl ConfigError {
+    fn new(msg: &str) -> ConfigError {
+        ConfigError {
+            details: msg.to_string(),
+        }
     }
 }
 
-fn gen_name(numprocs: i64, base_name: &str, i: i64) -> String {
-    if numprocs == 1 {
-        base_name.to_string()
-    } else {
-        base_name.to_string() + &i.to_string()
+impl fmt::Display for ConfigError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.details)
     }
 }
 
-fn get_stop_signal(prog: &Yaml) -> Result<Signal, ConfigError> {
-    let ss = get_str_field(prog, "stopsignal", Some(DFLT_STOPSIGNAL))?;
-    match ("SIG".to_owned() + &ss).parse::<Signal>() {
-        Ok(s) => Ok(s),
-        Err(_) => Ok(Signal::SIGTERM),
+impl Error for ConfigError {
+    fn description(&self) -> &str {
+        &self.details
     }
 }
 
