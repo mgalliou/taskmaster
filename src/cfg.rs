@@ -70,6 +70,10 @@ impl Config {
         }
         Ok(Config { programs })
     }
+
+    pub fn invalid_field_error(field: &str) -> ConfigError {
+        ConfigError::new(&format!("invalid value for field: {}", field))
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -171,21 +175,11 @@ fn get_num_field(prog: &Yaml, field: &str, default: i64) -> Result<i64, ConfigEr
 }
 
 fn get_umask(prog: &Yaml, field: &str) -> Result<u32, ConfigError> {
-    if prog[field].is_badvalue() {
-        return Ok(DFLT_UMASK)
-    };
-    match prog[field].as_i64() {
-        Some(s) => match u32::from_str_radix(&s.to_string(), 8) {
-            Ok(n) => Ok(n),
-            Err(_) => Err(ConfigError::new(&format!(
-                        "failed to convert umask: {}",
-                        field
-                        ))),
-        },
-        None => Err(ConfigError::new(&format!(
-                    "field not found or not a number: {}",
-                    field
-                    ))),
+    match prog[field] {
+        Yaml::BadValue => Ok(DFLT_UMASK),
+        Yaml::Integer(n) => Ok(u32::from_str_radix(&n.to_string(), 8)
+                               .expect("field should be valid")),
+        _ => Err(Config::invalid_field_error(field)),
     }
 }
 
