@@ -29,24 +29,18 @@ impl Config {
     pub fn from_file(path: &str) -> Result<Config, ConfigError> {
         let yaml_str = match fs::read_to_string(path) {
             Ok(f) => Ok(f),
-            Err(e) => Err(ConfigError::new(&format!(
-                "Failed to read config file: {}",
-                e
-            ))),
+            Err(e) => Err(ConfigError::from_unreadable_file(e)),
         }?;
         match Config::from_str(&yaml_str) {
             Ok(c) => Ok(c),
-            Err(e) => Err(ConfigError::new(&format!("Failed to parse yaml: {}", e))),
+            Err(e) => Err(ConfigError::from_invalid_cfg_file(e)),
         }
     }
 
     pub fn from_str(str: &str) -> Result<Config, ConfigError> {
         match YamlLoader::load_from_str(str) {
             Ok(yaml) => Config::from_yaml(&yaml[0]),
-            Err(e) => Err(ConfigError::new(&format!(
-                "error scanning config file: {}",
-                e.to_string()
-            ))),
+            Err(e) => Err(ConfigError::from_invalid_yaml(e)),
         }
     }
 
@@ -69,10 +63,6 @@ impl Config {
             }
         }
         Ok(Config { programs })
-    }
-
-    pub fn invalid_field_error(field: &str) -> ConfigError {
-        ConfigError::new(&format!("invalid value for field: {}", field))
     }
 }
 
@@ -108,7 +98,7 @@ impl ProgramConfig {
             exitcodes: get_num_vec_field(yaml, "exitcodes", DFLT_EXITCODES.to_vec())?,
             startretries: get_num_field(yaml, "startretries", DFLT_STARTRETRIES)?,
             starttime: get_num_field(yaml, "starttime", DLFT_STARTTIME)?,
-            stopsignal: get_stop_signal(yaml)?,
+            stopsignal: get_signal_field(yaml, "stopsignal", DFLT_STOPSIGNAL)?,
             stoptime: get_num_field(yaml, "stoptime", DFLT_STOPTIME)?,
             stdout: get_log_path_field(yaml, "stdout", DFLT_STDOUT)?,
             stderr: get_log_path_field(yaml, "stderr", DFLT_STDERR)?,
@@ -162,7 +152,7 @@ fn get_str_field(prog: &Yaml, field: &str, default: Option<&str>) -> Result<Stri
         (Yaml::BadValue, Some(d)) => Ok(d.to_string()),
         (Yaml::BadValue, None) => Err(ConfigError::new(&format!("missing value for field: {}", field))),
         (Yaml::String(s), _) => Ok(s.to_string()),
-        (_, _) => Err(ConfigError::new(&format!("field {} is not a string", field))),
+        (_, _) => Err(ConfigError::from_not_string(field)),
     }
 }
 
@@ -170,7 +160,7 @@ fn get_num_field(prog: &Yaml, field: &str, default: i64) -> Result<i64, ConfigEr
     match prog[field] {
         Yaml::BadValue => Ok(default),
         Yaml::Integer(n) => Ok(n),
-        _ => Err(ConfigError::new(&format!("invalid value for field: {}", field)))
+        _ => Err(ConfigError::from_not_number(field))
     }
 }
 
@@ -179,7 +169,7 @@ fn get_umask(prog: &Yaml, field: &str) -> Result<u32, ConfigError> {
         Yaml::BadValue => Ok(DFLT_UMASK),
         Yaml::Integer(n) => Ok(u32::from_str_radix(&n.to_string(), 8)
                                .expect("field should be valid")),
-        _ => Err(Config::invalid_field_error(field)),
+        _ => Err(ConfigError::from_not_number(field)),
     }
 }
 
@@ -193,7 +183,7 @@ fn get_autorestart(prog: &Yaml, field: &str) -> Result<RestartPolicy, ConfigErro
             return Ok(rp);
         }
     }
-    Err(ConfigError::new(&format!("invalid value for field: {}", field)))
+    Err(ConfigError::from_invalid_value(field))
 }
 
 fn get_opt_str_field(prog: &Yaml, field: &str, default: Option<String> ) -> Result<Option<String>, ConfigError> {
@@ -201,7 +191,7 @@ fn get_opt_str_field(prog: &Yaml, field: &str, default: Option<String> ) -> Resu
         (Yaml::BadValue, Some(d)) => Ok(Some(d.to_string())),
         (Yaml::BadValue, None) => Ok(None),
         (Yaml::String(s), _) => Ok(Some(s.to_string())),
-        (_, _) => Err(ConfigError::new(&format!("field {} is not a string", field))),
+        (_, _) => Err(ConfigError::from_not_string(field)),
     }
 }
 
@@ -209,7 +199,7 @@ fn get_bool_field(prog: &Yaml, field: &str, default: bool) -> Result<bool, Confi
     match prog[field] {
         Yaml::BadValue => Ok(default),
         Yaml::Boolean(b) => Ok(b),
-        _ => Err(ConfigError::new(&format!("field is not a boolean: {}", field))),
+        _ => Err(ConfigError::from_not_bool(field)),
     }
 }
 
@@ -217,27 +207,21 @@ fn get_num_vec_field(prog: &Yaml, field: &str, default: Vec<i64>) -> Result<Vec<
     let f = match &prog[field] {
         Yaml::BadValue => return Ok(default),
         Yaml::Array(v) => Ok(v),
-        _ => Err(ConfigError::new(&format!("field not found: {}", field))),
+        _ => Err(ConfigError::from_not_array(field)),
     }?;
     f.into_iter()
         .map(|n| match n.as_i64() {
             Some(n) => Ok(n),
-            None => Err(ConfigError::new(&format!(
-                        "invalid value for field: {}",
-                        field
-                        ))),
+            None => Err(ConfigError::from_array_value_not_nbr(field)),
         })
     .collect()
 }
 
-fn get_stop_signal(prog: &Yaml) -> Result<Signal, ConfigError> {
-    let ss = get_str_field(prog, "stopsignal", Some(DFLT_STOPSIGNAL))?;
+fn get_signal_field(prog: &Yaml, field: &str, default: &str) -> Result<Signal, ConfigError> {
+    let ss = get_str_field(prog, field, Some(default))?;
     match ("SIG".to_owned() + &ss).parse::<Signal>() {
         Ok(s) => Ok(s),
-        Err(_) => Err(ConfigError::new(&format!(
-                    "invalid value for field: {}",
-                    "stopsignal"
-                    ))),
+        Err(_) => Err(ConfigError::from_invalid_value(field)),
     }
 }
 
@@ -257,10 +241,7 @@ fn get_hash_str_field(prog: &Yaml, field: &str, default: HashMap<String, String>
     let f = match &prog[field] {
         Yaml::BadValue => return Ok(default),
         Yaml::Hash(h) => Ok(h.clone()),
-        _ => return Err(ConfigError::new(&format!(
-                    "invalid value for field: {}",
-                    field
-                    ))),
+        _ => return Err(ConfigError::from_not_hash(field)),
     }?;
     f.into_iter()
         .map(|(k, v)| {
@@ -276,10 +257,7 @@ fn get_hash_str_field(prog: &Yaml, field: &str, default: HashMap<String, String>
             let new_v = match v.into_string() {
                 Some(v) => v,
                 None => {
-                    return Err(ConfigError::new(&format!(
-                                "invalid key in field: {}",
-                                field
-                                )))
+                    return Err(ConfigError::from_hash_value_not_string(field))
                 }
             };
             Ok((new_k, new_v))
@@ -336,6 +314,50 @@ impl ConfigError {
         ConfigError {
             details: msg.to_string(),
         }
+    }
+
+    fn from_unreadable_file(e: std::io::Error) -> ConfigError {
+        ConfigError::new(&format!("failed to read config file: {}", e))
+    }
+
+    fn from_invalid_cfg_file(e: ConfigError) -> ConfigError {
+        ConfigError::new(&format!("invalid config file: {}", e))
+    }
+
+    fn from_invalid_value(field: &str) -> ConfigError {
+        ConfigError::new(&format!("invalid value for field: {}", field))
+    }
+
+    fn from_not_string(field: &str) -> ConfigError {
+        ConfigError::new(&format!("field `{}` should be a string", field))
+    }
+
+    fn from_not_number(field: &str) -> ConfigError {
+        ConfigError::new(&format!("field `{}` should be a number", field))
+    }
+
+    fn from_not_bool(field: &str) -> ConfigError {
+        ConfigError::new(&format!("field `{}` should be a number", field))
+    }
+
+    fn from_not_array(field: &str) -> ConfigError {
+        ConfigError::new(&format!("field `{}` should be an array", field))
+    }
+
+    fn from_not_hash(field: &str) -> ConfigError {
+        ConfigError::new(&format!("field `{}` should be a hashmap", field))
+    }
+
+    fn from_array_value_not_nbr(field: &str) -> ConfigError {
+        ConfigError::new(&format!("array `{}` values should be numbers", field))
+    }
+
+    fn from_hash_value_not_string(field: &str) -> ConfigError {
+        ConfigError::new(&format!("hashmap `{}` values should be strings", field))
+    }
+
+    fn from_invalid_yaml(e: yaml_rust::ScanError) -> ConfigError {
+        ConfigError::new(&format!( "error scanning config file: {}", e.to_string()))
     }
 }
 
