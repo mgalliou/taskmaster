@@ -203,6 +203,7 @@ fn get_bool_field(prog: &Yaml, field: &str, default: bool) -> Result<bool, Confi
     }
 }
 
+//TODO: handle single int value
 fn get_num_vec_field(prog: &Yaml, field: &str, default: Vec<i64>) -> Result<Vec<i64>, ConfigError> {
     let f = match &prog[field] {
         Yaml::BadValue => return Ok(default),
@@ -254,6 +255,7 @@ fn get_hash_str_field(prog: &Yaml, field: &str, default: HashMap<String, String>
                                 )))
                 }
             };
+            //TODO: handle other types and convert them to string
             let new_v = match v.into_string() {
                 Some(v) => v,
                 None => {
