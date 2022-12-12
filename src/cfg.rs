@@ -14,7 +14,7 @@ const DFLT_AUTOSTART: bool = true;
 const DFLT_AUTORESTART: RestartPolicy = RestartPolicy::Unexpected;
 const DFLT_EXITCODES: [i64; 1] = [0];
 const DFLT_STARTRETRIES: i64 = 3;
-const DLFT_STARTTIME: i64 = 10;
+const DFLT_STARTTIME: i64 = 10;
 const DFLT_STOPSIGNAL: &str = "TERM";
 const DFLT_STOPTIME: i64 = 10;
 const DFLT_STDOUT: &str = "AUTO";
@@ -97,7 +97,7 @@ impl ProgramConfig {
             autorestart: get_autorestart(yaml, "autorestart")?,
             exitcodes: get_num_vec_field(yaml, "exitcodes", DFLT_EXITCODES.to_vec())?,
             startretries: get_num_field(yaml, "startretries", DFLT_STARTRETRIES)?,
-            starttime: get_num_field(yaml, "starttime", DLFT_STARTTIME)?,
+            starttime: get_num_field(yaml, "starttime", DFLT_STARTTIME)?,
             stopsignal: get_signal_field(yaml, "stopsignal", DFLT_STOPSIGNAL)?,
             stoptime: get_num_field(yaml, "stoptime", DFLT_STOPTIME)?,
             stdout: get_log_path_field(yaml, "stdout", DFLT_STDOUT)?,
@@ -438,9 +438,9 @@ programs:
         assert_eq!(c.programs["cat"].autorestart, cfg::DFLT_AUTORESTART);
         assert_eq!(c.programs["cat"].exitcodes, cfg::DFLT_EXITCODES);
         assert_eq!(c.programs["cat"].startretries, cfg::DFLT_STARTRETRIES);
-        assert_eq!(c.programs["cat"].starttime, cfg::DLFT_STARTTIME);
+        assert_eq!(c.programs["cat"].starttime, cfg::DFLT_STARTTIME);
         assert_eq!(c.programs["cat"].stopsignal.as_str(), "SIGTERM");
-        assert_eq!(c.programs["cat"].stoptime, cfg::DLFT_STARTTIME);
+        assert_eq!(c.programs["cat"].stoptime, cfg::DFLT_STOPTIME);
         assert_eq!(c.programs["cat"].stdout, cfg::LogPath::Auto);
         assert_eq!(c.programs["cat"].stderr, cfg::LogPath::Auto);
         assert_eq!(c.programs["cat"].env, HashMap::new());
